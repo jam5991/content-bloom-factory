@@ -1,18 +1,29 @@
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { signUp, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,19 +37,45 @@ const Signup = () => {
       return;
     }
 
+    if (password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
-    // TODO: Implement Supabase authentication
-    console.log("Signup attempt:", { email, password });
+    console.log("Signup attempt:", { email, fullName });
     
-    // Simulate signup for now
-    setTimeout(() => {
+    const { error } = await signUp(email, password, fullName);
+    
+    if (error) {
+      console.error("Signup error:", error);
+      let errorMessage = "An error occurred during signup";
+      
+      if (error.message.includes("already registered")) {
+        errorMessage = "An account with this email already exists. Please try logging in instead.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Account created successfully!",
-        description: "Welcome to your content factory",
+        title: "Signup failed",
+        description: errorMessage,
+        variant: "destructive",
       });
-      setIsLoading(false);
-    }, 1000);
+    } else {
+      toast({
+        title: "Check your email!",
+        description: "We've sent you a verification link. Please check your email and click the link to activate your account.",
+      });
+      // Don't navigate immediately - user needs to verify email first
+    }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -65,6 +102,21 @@ const Signup = () => {
           <CardContent className="px-8 pb-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-3">
+                <Label htmlFor="fullName" className="text-beau-dark font-medium text-base">
+                  Full Name
+                </Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                  className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
+                />
+              </div>
+
+              <div className="space-y-3">
                 <Label htmlFor="email" className="text-beau-dark font-medium text-base">
                   Email Address
                 </Label>
@@ -90,6 +142,7 @@ const Signup = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={6}
                   className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
               </div>
@@ -105,6 +158,7 @@ const Signup = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={6}
                   className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
               </div>
