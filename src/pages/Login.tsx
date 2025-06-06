@@ -23,38 +23,39 @@ const Login = () => {
     // Simulate login for now
     setTimeout(() => {
       toast({
-        title: "Login functionality",
-        description: "Connect to Supabase to enable authentication",
+        title: "Welcome back!",
+        description: "You've successfully signed in to your content factory",
       });
       setIsLoading(false);
     }, 1000);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-warm-white via-cream to-sage/10 flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-md animate-fade-in-up">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-serif font-semibold text-charcoal hover:text-primary transition-colors">
+        <div className="text-center mb-12">
+          <Link to="/" className="text-4xl font-serif font-semibold text-beau-dark hover:text-beau-charcoal transition-colors duration-300">
             ContentCraft
           </Link>
+          <p className="text-beau-charcoal/70 mt-2 font-sans">Your AI-powered content factory</p>
         </div>
 
         {/* Login Form */}
-        <Card className="bg-warm-white border-sage/20 shadow-lg">
-          <CardHeader className="text-center space-y-2">
-            <CardTitle className="text-2xl font-serif text-charcoal">
+        <Card className="bg-white/90 backdrop-blur-sm border-beau-soft shadow-xl animate-fade-in-delayed">
+          <CardHeader className="text-center space-y-3 pb-8">
+            <CardTitle className="text-3xl font-serif text-beau-dark">
               Welcome Back
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Sign in to your content factory
+            <CardDescription className="text-beau-charcoal/70 text-lg leading-relaxed">
+              Sign in to continue creating amazing content
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-8 pb-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-charcoal font-medium">
-                  Email
+              <div className="space-y-3">
+                <Label htmlFor="email" className="text-beau-dark font-medium text-base">
+                  Email Address
                 </Label>
                 <Input
                   id="email"
@@ -63,14 +64,22 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
                   required
-                  className="border-sage/30 focus:border-primary bg-warm-white"
+                  className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-charcoal font-medium">
-                  Password
-                </Label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-beau-dark font-medium text-base">
+                    Password
+                  </Label>
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-beau-charcoal/70 hover:text-beau-dark transition-colors duration-300"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -78,36 +87,29 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="border-sage/30 focus:border-primary bg-warm-white"
+                  className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <Link 
-                  to="/forgot-password" 
-                  className="text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot password?
-                </Link>
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                className="w-full bg-beau-dark hover:bg-beau-charcoal text-white font-medium h-12 text-base transition-all duration-300 transform hover:scale-[1.02]"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link 
-                to="/signup" 
-                className="text-primary hover:text-primary/80 font-medium transition-colors"
-              >
-                Sign up
-              </Link>
+            <div className="mt-8 pt-6 border-t border-beau-soft text-center">
+              <p className="text-beau-charcoal/70">
+                Don't have an account?{" "}
+                <Link 
+                  to="/signup" 
+                  className="text-beau-dark hover:text-beau-charcoal font-medium transition-colors duration-300 underline underline-offset-4"
+                >
+                  Create one
+                </Link>
+              </p>
             </div>
           </CardContent>
         </Card>

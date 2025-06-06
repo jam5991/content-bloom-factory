@@ -5,40 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
 const Signup = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    agreeToTerms: false,
-  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.password !== formData.confirmPassword) {
+    if (password !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords don't match",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.agreeToTerms) {
-      toast({
-        title: "Error",
-        description: "Please agree to the terms and conditions",
+        title: "Passwords don't match",
+        description: "Please make sure both passwords are identical.",
         variant: "destructive",
       });
       return;
@@ -47,134 +29,113 @@ const Signup = () => {
     setIsLoading(true);
 
     // TODO: Implement Supabase authentication
-    console.log("Signup attempt:", formData);
+    console.log("Signup attempt:", { email, password });
     
     // Simulate signup for now
     setTimeout(() => {
       toast({
-        title: "Signup functionality",
-        description: "Connect to Supabase to enable user registration",
+        title: "Account created successfully!",
+        description: "Welcome to your content factory",
       });
       setIsLoading(false);
     }, 1000);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-warm-white via-cream to-sage/10 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-md animate-fade-in-up">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-serif font-semibold text-charcoal hover:text-primary transition-colors">
+        <div className="text-center mb-12">
+          <Link to="/" className="text-4xl font-serif font-semibold text-beau-dark hover:text-beau-charcoal transition-colors duration-300">
             ContentCraft
           </Link>
+          <p className="text-beau-charcoal/70 mt-2 font-sans">Your AI-powered content factory</p>
         </div>
 
         {/* Signup Form */}
-        <Card className="bg-warm-white border-sage/20 shadow-lg">
-          <CardHeader className="text-center space-y-2">
-            <CardTitle className="text-2xl font-serif text-charcoal">
-              Create Your Account
+        <Card className="bg-white/90 backdrop-blur-sm border-beau-soft shadow-xl animate-fade-in-delayed">
+          <CardHeader className="text-center space-y-3 pb-8">
+            <CardTitle className="text-3xl font-serif text-beau-dark">
+              Start Creating
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Start your content creation journey
+            <CardDescription className="text-beau-charcoal/70 text-lg leading-relaxed">
+              Join thousands of creators automating their social media presence
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-8 pb-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-charcoal font-medium">
-                  Full Name
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  placeholder="John Doe"
-                  required
-                  className="border-sage/30 focus:border-primary bg-warm-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-charcoal font-medium">
-                  Email
+              <div className="space-y-3">
+                <Label htmlFor="email" className="text-beau-dark font-medium text-base">
+                  Email Address
                 </Label>
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
                   required
-                  className="border-sage/30 focus:border-primary bg-warm-white"
+                  className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-charcoal font-medium">
+              <div className="space-y-3">
+                <Label htmlFor="password" className="text-beau-dark font-medium text-base">
                   Password
                 </Label>
                 <Input
                   id="password"
                   type="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="border-sage/30 focus:border-primary bg-warm-white"
+                  className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-charcoal font-medium">
+              <div className="space-y-3">
+                <Label htmlFor="confirmPassword" className="text-beau-dark font-medium text-base">
                   Confirm Password
                 </Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="border-sage/30 focus:border-primary bg-warm-white"
+                  className="border-beau-soft focus:border-beau-dark bg-white/80 h-12 text-base transition-all duration-300"
                 />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={formData.agreeToTerms}
-                  onCheckedChange={(checked) => handleInputChange("agreeToTerms", !!checked)}
-                />
-                <Label htmlFor="terms" className="text-sm text-muted-foreground">
-                  I agree to the{" "}
-                  <Link to="/terms" className="text-primary hover:text-primary/80">
-                    Terms & Conditions
-                  </Link>
-                </Label>
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                className="w-full bg-beau-dark hover:bg-beau-charcoal text-white font-medium h-12 text-base transition-all duration-300 transform hover:scale-[1.02]"
                 disabled={isLoading}
               >
-                {isLoading ? "Creating account..." : "Create Account"}
+                {isLoading ? "Creating your account..." : "Create Account"}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link 
-                to="/login" 
-                className="text-primary hover:text-primary/80 font-medium transition-colors"
-              >
-                Sign in
-              </Link>
+            <div className="mt-8 pt-6 border-t border-beau-soft text-center">
+              <p className="text-beau-charcoal/70">
+                Already have an account?{" "}
+                <Link 
+                  to="/login" 
+                  className="text-beau-dark hover:text-beau-charcoal font-medium transition-colors duration-300 underline underline-offset-4"
+                >
+                  Sign in
+                </Link>
+              </p>
             </div>
           </CardContent>
         </Card>
+
+        {/* Additional Info */}
+        <div className="mt-8 text-center text-sm text-beau-charcoal/60">
+          <p>By creating an account, you agree to our terms of service and privacy policy</p>
+        </div>
       </div>
     </div>
   );
