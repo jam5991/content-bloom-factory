@@ -129,6 +129,8 @@ const CreateContent = () => {
         }
 
         // Create content drafts using the generated content from webhook
+        console.log("Full responseData structure:", JSON.stringify(responseData, null, 2));
+        
         const newDrafts = formData.platforms.map((platform, index) => {
           // Map platform ID to proper case for webhook response
           const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
@@ -137,10 +139,12 @@ const CreateContent = () => {
           const platformPosts = responseData?.response?.body?.[0]?.output?.platform_posts;
           const platformData = platformPosts?.[platformName];
           
-          const generatedContent = platformData?.post || "waiting for response...";
+          console.log(`Platform: ${platformName}, platformData:`, platformData);
+          
+          const generatedContent = platformData?.post || "No content received from webhook";
           const generatedHashtags = platformData?.hashtags || formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim());
           
-          return {
+          const draft = {
             id: `${Date.now()}-${index}`,
             topic: formData.topic,
             platform: platformName,
@@ -149,6 +153,9 @@ const CreateContent = () => {
             status: "pending" as const,
             createdAt: new Date().toISOString(),
           };
+          
+          console.log("Created draft:", draft);
+          return draft;
         });
 
         // Store drafts in localStorage for approval queue
