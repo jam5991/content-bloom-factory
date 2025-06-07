@@ -124,6 +124,7 @@ const CreateContent = () => {
           console.log("Raw response text:", text);
           console.log("Text length:", text.length);
           console.log("Is text empty?", text.trim() === "");
+          console.log("Text as JSON string:", JSON.stringify(text));
           console.log("================================");
           
           if (text.trim()) {
@@ -131,12 +132,13 @@ const CreateContent = () => {
             console.log("✅ Successfully parsed JSON response:", responseData);
           } else {
             console.log("❌ Response text is empty or whitespace only");
-            responseData = {}; // Ensure we have an empty object
+            console.log("❌ The webhook is not returning any data!");
+            responseData = { error: "Empty response from webhook" }; // Make it obvious it's empty
           }
         } catch (jsonError) {
           console.log("❌ JSON parsing error:", jsonError);
           console.log("Response is not valid JSON, using empty object");
-          responseData = {};
+          responseData = { error: "Invalid JSON from webhook" };
         }
 
         // Create content drafts using the generated content from webhook
