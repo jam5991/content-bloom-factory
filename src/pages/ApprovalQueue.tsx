@@ -22,12 +22,28 @@ const ApprovalQueue = () => {
   const [drafts, setDrafts] = useState<ContentDraft[]>([]);
   const { toast } = useToast();
 
-  // Load drafts from localStorage on component mount
+  // Load drafts from localStorage on component mount and listen for changes
   useEffect(() => {
-    const storedDrafts = localStorage.getItem('contentDrafts');
-    if (storedDrafts) {
-      setDrafts(JSON.parse(storedDrafts));
-    }
+    const loadDrafts = () => {
+      const storedDrafts = localStorage.getItem('contentDrafts');
+      if (storedDrafts) {
+        setDrafts(JSON.parse(storedDrafts));
+      }
+    };
+
+    // Load initially
+    loadDrafts();
+
+    // Listen for storage changes from other tabs/windows
+    window.addEventListener('storage', loadDrafts);
+    
+    // Also check for updates periodically (in case user navigates back to this page)
+    const interval = setInterval(loadDrafts, 1000);
+
+    return () => {
+      window.removeEventListener('storage', loadDrafts);
+      clearInterval(interval);
+    };
   }, []);
 
   // Update localStorage whenever drafts change
