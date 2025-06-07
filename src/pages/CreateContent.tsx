@@ -81,17 +81,59 @@ const CreateContent = () => {
 
     setIsGenerating(true);
 
-    // TODO: Implement AI content generation
-    console.log("Generating content with:", formData);
-    
-    // Simulate AI generation
-    setTimeout(() => {
-      toast({
-        title: "Content Generation",
-        description: "AI content generation will be available once backend is connected",
+    try {
+      // Prepare form data for webhook
+      const webhookData = {
+        topic: formData.topic,
+        description: formData.description,
+        tone: formData.tone,
+        audience: formData.audience,
+        platforms: formData.platforms,
+        hashtags: formData.hashtags,
+        timestamp: new Date().toISOString(),
+        fileCount: formData.files.length,
+        fileNames: formData.files.map(file => file.name)
+      };
+
+      console.log("Sending data to webhook:", webhookData);
+
+      const response = await fetch("https://lienpletinckx.app.n8n.cloud/webhook-test/b4221a4a-69c5-4c4e-bf80-1a03f28e1815", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(webhookData),
       });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Content request sent successfully!",
+        });
+        
+        // Reset form
+        setFormData({
+          topic: "",
+          description: "",
+          tone: "",
+          audience: "",
+          platforms: [],
+          hashtags: "",
+          files: [],
+        });
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error sending to webhook:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send content request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   return (
