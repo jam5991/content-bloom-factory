@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,37 +19,23 @@ interface ContentDraft {
 }
 
 const ApprovalQueue = () => {
-  const [drafts, setDrafts] = useState<ContentDraft[]>([
-    {
-      id: "1",
-      topic: "Holiday Marketing Campaign",
-      platform: "Instagram",
-      content: "✨ The holiday season is here! Our team has been working hard to bring you something special. Stay tuned for exciting announcements coming your way. What are you most excited about this holiday season?",
-      hashtags: ["#holidays", "#marketing", "#excited", "#announcement"],
-      status: "pending",
-      createdAt: "2024-01-15T10:30:00Z",
-    },
-    {
-      id: "2",
-      topic: "Holiday Marketing Campaign",
-      platform: "LinkedIn",
-      content: "As we approach the holiday season, I'm reflecting on the incredible year we've had at our company. Our latest campaign showcases the innovation and dedication that drives our team forward. Looking ahead to 2024 with optimism and strategic planning.",
-      hashtags: ["#leadership", "#business", "#innovation", "#2024planning"],
-      status: "pending",
-      createdAt: "2024-01-15T10:30:00Z",
-    },
-    {
-      id: "3",
-      topic: "Product Launch Announcement",
-      platform: "X",
-      content: "🚀 Big news dropping soon! Our latest product is about to revolutionize how you think about [industry]. Beta testers are already calling it a game-changer. Ready to be part of the future?",
-      hashtags: ["#productlaunch", "#innovation", "#beta", "#gamechanger"],
-      status: "pending",
-      createdAt: "2024-01-14T15:45:00Z",
-    },
-  ]);
-
+  const [drafts, setDrafts] = useState<ContentDraft[]>([]);
   const { toast } = useToast();
+
+  // Load drafts from localStorage on component mount
+  useEffect(() => {
+    const storedDrafts = localStorage.getItem('contentDrafts');
+    if (storedDrafts) {
+      setDrafts(JSON.parse(storedDrafts));
+    }
+  }, []);
+
+  // Update localStorage whenever drafts change
+  useEffect(() => {
+    if (drafts.length > 0) {
+      localStorage.setItem('contentDrafts', JSON.stringify(drafts));
+    }
+  }, [drafts]);
 
   const handleApprove = (id: string) => {
     setDrafts(prev => prev.map(draft => 

@@ -106,9 +106,28 @@ const CreateContent = () => {
       });
 
       if (response.ok) {
+        const responseData = await response.json();
+        console.log("Webhook response:", responseData);
+
+        // Create content drafts for each platform
+        const newDrafts = formData.platforms.map((platform, index) => ({
+          id: `${Date.now()}-${index}`,
+          topic: formData.topic,
+          platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+          content: `Generated content for ${formData.topic} on ${platform}. ${formData.description || 'Content will be generated based on your requirements.'}`,
+          hashtags: formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim()),
+          status: "pending" as const,
+          createdAt: new Date().toISOString(),
+        }));
+
+        // Store drafts in localStorage for approval queue
+        const existingDrafts = JSON.parse(localStorage.getItem('contentDrafts') || '[]');
+        const updatedDrafts = [...existingDrafts, ...newDrafts];
+        localStorage.setItem('contentDrafts', JSON.stringify(updatedDrafts));
+
         toast({
-          title: "Success",
-          description: "Content request sent successfully!",
+          title: "Content Generated",
+          description: `${newDrafts.length} content draft(s) created and sent to approval queue!`,
         });
         
         // Reset form
