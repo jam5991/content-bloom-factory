@@ -26,8 +26,16 @@ const ApprovalQueue = () => {
   useEffect(() => {
     const loadDrafts = () => {
       const storedDrafts = localStorage.getItem('contentDrafts');
+      console.log("=== APPROVAL QUEUE DEBUG ===");
+      console.log("Raw localStorage content:", storedDrafts);
       if (storedDrafts) {
-        setDrafts(JSON.parse(storedDrafts));
+        const parsedDrafts = JSON.parse(storedDrafts);
+        console.log("Parsed drafts:", parsedDrafts);
+        console.log("Number of drafts:", parsedDrafts.length);
+        setDrafts(parsedDrafts);
+      } else {
+        console.log("No drafts found in localStorage");
+        setDrafts([]);
       }
     };
 
