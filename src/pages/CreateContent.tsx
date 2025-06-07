@@ -107,7 +107,7 @@ const CreateContent = () => {
 
       if (response.ok) {
         // Try to parse JSON response, but handle empty responses gracefully
-        let responseData = {};
+        let responseData: any = {};
         try {
           const text = await response.text();
           if (text.trim()) {
@@ -118,13 +118,13 @@ const CreateContent = () => {
         }
         console.log("Webhook response:", responseData);
 
-        // Create content drafts for each platform
+        // Create content drafts using the generated content from webhook
         const newDrafts = formData.platforms.map((platform, index) => ({
           id: `${Date.now()}-${index}`,
           topic: formData.topic,
           platform: platform.charAt(0).toUpperCase() + platform.slice(1),
-          content: `Generated content for ${formData.topic} on ${platform}. ${formData.description || 'Content will be generated based on your requirements.'}`,
-          hashtags: formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim()),
+          content: responseData?.generatedContent?.[platform] || responseData?.content || `Generated content for ${formData.topic} on ${platform}. ${formData.description || 'Content will be generated based on your requirements.'}`,
+          hashtags: responseData?.hashtags?.[platform] || formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim()),
           status: "pending" as const,
           createdAt: new Date().toISOString(),
         }));
