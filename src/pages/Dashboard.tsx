@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, CheckCircle, Clock, X } from "lucide-react";
+import { Plus, Calendar, CheckCircle, Clock, X, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ContentItem {
   id: string;
@@ -16,6 +17,8 @@ interface ContentItem {
 }
 
 const Dashboard = () => {
+  const { signOut } = useAuth();
+  
   // Mock data - this would come from Supabase
   const [contentItems] = useState<ContentItem[]>([
     {
@@ -83,6 +86,14 @@ const Dashboard = () => {
                 Approval Queue
               </Button>
             </Link>
+            <Button 
+              variant="outline" 
+              onClick={() => signOut()}
+              className="border-sage text-charcoal hover:bg-sage/10"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </nav>
