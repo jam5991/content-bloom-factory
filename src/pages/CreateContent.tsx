@@ -133,7 +133,13 @@ const CreateContent = () => {
         
         const newDrafts = formData.platforms.map((platform, index) => {
           // Map platform ID to proper case for webhook response
-          const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+          const platformMap: Record<string, string> = {
+            'linkedin': 'LinkedIn',
+            'facebook': 'Facebook', 
+            'instagram': 'Instagram',
+            'twitter': 'Twitter'
+          };
+          const platformName = platformMap[platform] || platform;
           
           // Extract content from webhook response structure
           const platformPosts = responseData?.response?.body?.[0]?.output?.platform_posts;
