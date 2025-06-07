@@ -279,7 +279,7 @@ const CreateContent = () => {
                 <Label className="text-charcoal font-medium">
                   Media Files (optional)
                 </Label>
-                <div className="border-2 border-dashed border-sage/30 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <div className="relative border-2 border-dashed border-sage/30 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
                   <Upload className="h-12 w-12 text-sage mx-auto mb-4" />
                   <div className="space-y-2">
                     <p className="text-charcoal font-medium">
