@@ -97,6 +97,10 @@ const CreateContent = () => {
 
       console.log("Sending data to webhook:", webhookData);
 
+      console.log("=== WEBHOOK CALL START ===");
+      console.log("Webhook URL:", "https://lienpletinckx.app.n8n.cloud/webhook-test/b4221a4a-69c5-4c4e-bf80-1a03f28e1815");
+      console.log("Webhook data being sent:", webhookData);
+      
       const response = await fetch("https://lienpletinckx.app.n8n.cloud/webhook-test/b4221a4a-69c5-4c4e-bf80-1a03f28e1815", {
         method: "POST",
         headers: {
@@ -105,27 +109,34 @@ const CreateContent = () => {
         body: JSON.stringify(webhookData),
       });
 
+      console.log("=== WEBHOOK RESPONSE RECEIVED ===");
+      console.log("Response status:", response.status);
+      console.log("Response statusText:", response.statusText);
+      console.log("Response ok:", response.ok);
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
         // Try to parse JSON response, but handle empty responses gracefully
         let responseData: any = {};
         try {
           const text = await response.text();
           console.log("=== RAW WEBHOOK RESPONSE ===");
-          console.log("Response status:", response.status);
-          console.log("Response headers:", Object.fromEntries(response.headers.entries()));
           console.log("Raw response text:", text);
           console.log("Text length:", text.length);
+          console.log("Is text empty?", text.trim() === "");
           console.log("================================");
           
           if (text.trim()) {
             responseData = JSON.parse(text);
-            console.log("Parsed JSON response:", responseData);
+            console.log("✅ Successfully parsed JSON response:", responseData);
           } else {
-            console.log("Response text is empty or whitespace only");
+            console.log("❌ Response text is empty or whitespace only");
+            responseData = {}; // Ensure we have an empty object
           }
         } catch (jsonError) {
-          console.log("JSON parsing error:", jsonError);
-          console.log("Response is not valid JSON, proceeding anyway");
+          console.log("❌ JSON parsing error:", jsonError);
+          console.log("Response is not valid JSON, using empty object");
+          responseData = {};
         }
 
         // Create content drafts using the generated content from webhook
