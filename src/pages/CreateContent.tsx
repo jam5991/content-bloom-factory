@@ -129,15 +129,27 @@ const CreateContent = () => {
         }
 
         // Create content drafts using the generated content from webhook
-        const newDrafts = formData.platforms.map((platform, index) => ({
-          id: `${Date.now()}-${index}`,
-          topic: formData.topic,
-          platform: platform.charAt(0).toUpperCase() + platform.slice(1),
-          content: responseData?.generatedContent?.[platform] || responseData?.content || "waiting for response...",
-          hashtags: responseData?.hashtags?.[platform] || formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim()),
-          status: "pending" as const,
-          createdAt: new Date().toISOString(),
-        }));
+        const newDrafts = formData.platforms.map((platform, index) => {
+          // Map platform ID to proper case for webhook response
+          const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+          
+          // Extract content from webhook response structure
+          const platformPosts = responseData?.response?.body?.[0]?.output?.platform_posts;
+          const platformData = platformPosts?.[platformName];
+          
+          const generatedContent = platformData?.post || "waiting for response...";
+          const generatedHashtags = platformData?.hashtags || formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim());
+          
+          return {
+            id: `${Date.now()}-${index}`,
+            topic: formData.topic,
+            platform: platformName,
+            content: generatedContent,
+            hashtags: generatedHashtags,
+            status: "pending" as const,
+            createdAt: new Date().toISOString(),
+          };
+        });
 
         // Store drafts in localStorage for approval queue
         const existingDrafts = JSON.parse(localStorage.getItem('contentDrafts') || '[]');
