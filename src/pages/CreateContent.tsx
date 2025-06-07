@@ -165,13 +165,21 @@ const CreateContent = () => {
           
           // Try different possible response structures based on the webhook format
           if (responseData) {
+            // Check if it's an array response (actual structure from webhook)
+            if (Array.isArray(responseData) && responseData[0]?.response?.body?.[0]?.output?.platform_posts) {
+              const platformPosts = responseData[0].response.body[0].output.platform_posts;
+              const platformData = platformPosts[platformName];
+              console.log(`Found array-nested platform data for ${platformName}:`, platformData);
+              generatedContent = platformData?.post || platformData?.content || generatedContent;
+              generatedHashtags = platformData?.hashtags || generatedHashtags;
+            }
             // Check if content is directly in responseData
-            if (responseData[platformName]) {
+            else if (responseData[platformName]) {
               console.log(`Found direct platform data for ${platformName}:`, responseData[platformName]);
               generatedContent = responseData[platformName]?.content || responseData[platformName]?.post || generatedContent;
               generatedHashtags = responseData[platformName]?.hashtags || generatedHashtags;
             }
-            // Check nested structure from the logs
+            // Check nested structure from the logs (original structure)
             else if (responseData?.response?.body?.[0]?.output?.platform_posts) {
               const platformPosts = responseData.response.body[0].output.platform_posts;
               const platformData = platformPosts[platformName];
