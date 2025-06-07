@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,12 @@ interface ContentItem {
 
 const Dashboard = () => {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
   
   // Mock data - this would come from Supabase
   const [contentItems] = useState<ContentItem[]>([
@@ -88,7 +94,7 @@ const Dashboard = () => {
             </Link>
             <Button 
               variant="outline" 
-              onClick={() => signOut()}
+              onClick={handleSignOut}
               className="border-sage text-charcoal hover:bg-sage/10"
             >
               <LogOut className="h-4 w-4 mr-2" />
