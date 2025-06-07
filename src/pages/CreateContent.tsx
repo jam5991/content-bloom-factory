@@ -158,6 +158,7 @@ const CreateContent = () => {
           console.log(`=== PARSING FOR ${platformName} ===`);
           console.log("responseData:", responseData);
           console.log("responseData type:", typeof responseData);
+          console.log("Is Array?:", Array.isArray(responseData));
           
           // Try multiple possible response structures
           let generatedContent = "No content received from webhook";
@@ -168,10 +169,15 @@ const CreateContent = () => {
             // Check if it's an array response (actual structure from webhook)
             if (Array.isArray(responseData) && responseData[0]?.response?.body?.[0]?.output?.platform_posts) {
               const platformPosts = responseData[0].response.body[0].output.platform_posts;
+              console.log(`All platform posts:`, platformPosts);
+              console.log(`Available platforms:`, Object.keys(platformPosts));
               const platformData = platformPosts[platformName];
               console.log(`Found array-nested platform data for ${platformName}:`, platformData);
-              generatedContent = platformData?.post || platformData?.content || generatedContent;
-              generatedHashtags = platformData?.hashtags || generatedHashtags;
+              if (platformData && platformData.post) {
+                generatedContent = platformData.post;
+                generatedHashtags = platformData.hashtags || generatedHashtags;
+                console.log(`✅ Successfully extracted content from array structure`);
+              }
             }
             // Check if content is directly in responseData
             else if (responseData[platformName]) {
@@ -184,14 +190,23 @@ const CreateContent = () => {
               const platformPosts = responseData.response.body[0].output.platform_posts;
               const platformData = platformPosts[platformName];
               console.log(`Found nested platform data for ${platformName}:`, platformData);
-              generatedContent = platformData?.post || platformData?.content || generatedContent;
-              generatedHashtags = platformData?.hashtags || generatedHashtags;
+              if (platformData && platformData.post) {
+                generatedContent = platformData.post;
+                generatedHashtags = platformData.hashtags || generatedHashtags;
+                console.log(`✅ Successfully extracted content from nested structure`);
+              }
             }
             // Check if it's a simple structure
             else if (responseData.content || responseData.post) {
               console.log("Found simple content structure:", responseData);
               generatedContent = responseData.content || responseData.post || generatedContent;
               generatedHashtags = responseData.hashtags || generatedHashtags;
+            }
+            
+            // Final fallback debug
+            if (generatedContent === "No content received from webhook") {
+              console.log("❌ Failed to extract content. Full responseData structure:");
+              console.log(JSON.stringify(responseData, null, 2));
             }
           }
           
