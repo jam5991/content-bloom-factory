@@ -110,13 +110,23 @@ const CreateContent = () => {
         let responseData: any = {};
         try {
           const text = await response.text();
+          console.log("=== RAW WEBHOOK RESPONSE ===");
+          console.log("Response status:", response.status);
+          console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+          console.log("Raw response text:", text);
+          console.log("Text length:", text.length);
+          console.log("================================");
+          
           if (text.trim()) {
             responseData = JSON.parse(text);
+            console.log("Parsed JSON response:", responseData);
+          } else {
+            console.log("Response text is empty or whitespace only");
           }
         } catch (jsonError) {
-          console.log("Response is not JSON or empty, proceeding anyway");
+          console.log("JSON parsing error:", jsonError);
+          console.log("Response is not valid JSON, proceeding anyway");
         }
-        console.log("Webhook response:", responseData);
 
         // Create content drafts using the generated content from webhook
         const newDrafts = formData.platforms.map((platform, index) => ({
