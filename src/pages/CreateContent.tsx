@@ -123,7 +123,7 @@ const CreateContent = () => {
           id: `${Date.now()}-${index}`,
           topic: formData.topic,
           platform: platform.charAt(0).toUpperCase() + platform.slice(1),
-          content: responseData?.generatedContent?.[platform] || responseData?.content || `Generated content for ${formData.topic} on ${platform}. ${formData.description || 'Content will be generated based on your requirements.'}`,
+          content: responseData?.generatedContent?.[platform] || responseData?.content || "waiting for response...",
           hashtags: responseData?.hashtags?.[platform] || formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim()),
           status: "pending" as const,
           createdAt: new Date().toISOString(),
