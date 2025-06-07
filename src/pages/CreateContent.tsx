@@ -120,24 +120,23 @@ const CreateContent = () => {
         let responseData: any = {};
         try {
           const text = await response.text();
-          console.log("=== RAW WEBHOOK RESPONSE ===");
-          console.log("Raw response text:", text);
-          console.log("Text length:", text.length);
-          console.log("Is text empty?", text.trim() === "");
-          console.log("Text as JSON string:", JSON.stringify(text));
-          console.log("================================");
+          console.log("🚀 CRITICAL DEBUG: Raw response text:", text);
+          console.log("🚀 CRITICAL DEBUG: Text length:", text.length);
+          console.log("🚀 CRITICAL DEBUG: Text type:", typeof text);
+          console.log("🚀 CRITICAL DEBUG: Is empty?", text.trim() === "");
           
           if (text.trim()) {
             responseData = JSON.parse(text);
-            console.log("✅ Successfully parsed JSON response:", responseData);
+            console.log("🎯 WEBHOOK SUCCESS: Parsed response:", JSON.stringify(responseData, null, 2));
+            console.log("🎯 WEBHOOK SUCCESS: Response keys:", Object.keys(responseData));
+            console.log("🎯 WEBHOOK SUCCESS: Response type:", typeof responseData);
+            console.log("🎯 WEBHOOK SUCCESS: Is array?", Array.isArray(responseData));
           } else {
-            console.log("❌ Response text is empty or whitespace only");
-            console.log("❌ The webhook is not returning any data!");
-            responseData = { error: "Empty response from webhook" }; // Make it obvious it's empty
+            console.log("💥 WEBHOOK EMPTY: No response content from webhook!");
+            responseData = { error: "Empty response from webhook" };
           }
         } catch (jsonError) {
-          console.log("❌ JSON parsing error:", jsonError);
-          console.log("Response is not valid JSON, using empty object");
+          console.log("💥 WEBHOOK ERROR: JSON parsing failed:", jsonError);
           responseData = { error: "Invalid JSON from webhook" };
         }
 
