@@ -106,7 +106,16 @@ const CreateContent = () => {
       });
 
       if (response.ok) {
-        const responseData = await response.json();
+        // Try to parse JSON response, but handle empty responses gracefully
+        let responseData = {};
+        try {
+          const text = await response.text();
+          if (text.trim()) {
+            responseData = JSON.parse(text);
+          }
+        } catch (jsonError) {
+          console.log("Response is not JSON or empty, proceeding anyway");
+        }
         console.log("Webhook response:", responseData);
 
         // Create content drafts for each platform
