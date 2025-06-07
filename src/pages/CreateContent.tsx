@@ -129,7 +129,10 @@ const CreateContent = () => {
         }
 
         // Create content drafts using the generated content from webhook
+        console.log("=== FULL RESPONSE DEBUG ===");
         console.log("Full responseData structure:", JSON.stringify(responseData, null, 2));
+        console.log("responseData keys:", Object.keys(responseData || {}));
+        console.log("===========================");
         
         const newDrafts = formData.platforms.map((platform, index) => {
           // Map platform ID to proper case for webhook response
@@ -141,14 +144,41 @@ const CreateContent = () => {
           };
           const platformName = platformMap[platform] || platform;
           
-          // Extract content from webhook response structure
-          const platformPosts = responseData?.response?.body?.[0]?.output?.platform_posts;
-          const platformData = platformPosts?.[platformName];
+          console.log(`=== PARSING FOR ${platformName} ===`);
+          console.log("responseData:", responseData);
+          console.log("responseData type:", typeof responseData);
           
-          console.log(`Platform: ${platformName}, platformData:`, platformData);
+          // Try multiple possible response structures
+          let generatedContent = "No content received from webhook";
+          let generatedHashtags = formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim());
           
-          const generatedContent = platformData?.post || "No content received from webhook";
-          const generatedHashtags = platformData?.hashtags || formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim());
+          // Try different possible response structures based on the webhook format
+          if (responseData) {
+            // Check if content is directly in responseData
+            if (responseData[platformName]) {
+              console.log(`Found direct platform data for ${platformName}:`, responseData[platformName]);
+              generatedContent = responseData[platformName]?.content || responseData[platformName]?.post || generatedContent;
+              generatedHashtags = responseData[platformName]?.hashtags || generatedHashtags;
+            }
+            // Check nested structure from the logs
+            else if (responseData?.response?.body?.[0]?.output?.platform_posts) {
+              const platformPosts = responseData.response.body[0].output.platform_posts;
+              const platformData = platformPosts[platformName];
+              console.log(`Found nested platform data for ${platformName}:`, platformData);
+              generatedContent = platformData?.post || platformData?.content || generatedContent;
+              generatedHashtags = platformData?.hashtags || generatedHashtags;
+            }
+            // Check if it's a simple structure
+            else if (responseData.content || responseData.post) {
+              console.log("Found simple content structure:", responseData);
+              generatedContent = responseData.content || responseData.post || generatedContent;
+              generatedHashtags = responseData.hashtags || generatedHashtags;
+            }
+          }
+          
+          console.log(`Final content for ${platformName}:`, generatedContent);
+          console.log(`Final hashtags for ${platformName}:`, generatedHashtags);
+          console.log("================================");
           
           const draft = {
             id: `${Date.now()}-${index}`,
