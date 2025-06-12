@@ -1,0 +1,2 @@
+-- Create edge function for content generation
+-- This will be handled by the edge function creation

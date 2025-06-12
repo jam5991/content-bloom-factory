@@ -82,181 +82,65 @@ const CreateContent = () => {
     setIsGenerating(true);
 
     try {
-      // Prepare form data for webhook
-      const webhookData = {
-        topic: formData.topic,
-        description: formData.description,
-        tone: formData.tone,
-        audience: formData.audience,
-        platforms: formData.platforms,
-        hashtags: formData.hashtags,
-        timestamp: new Date().toISOString(),
-        fileCount: formData.files.length,
-        fileNames: formData.files.map(file => file.name)
-      };
-
-      console.log("Sending data to webhook:", webhookData);
-
-      console.log("=== WEBHOOK CALL START ===");
-      console.log("Webhook URL:", "https://lienpletinckx.app.n8n.cloud/webhook-test/b4221a4a-69c5-4c4e-bf80-1a03f28e1815");
-      console.log("Webhook data being sent:", webhookData);
-      
-      const response = await fetch("https://lienpletinckx.app.n8n.cloud/webhook-test/b4221a4a-69c5-4c4e-bf80-1a03f28e1815", {
+      // Call our Supabase Edge Function for content generation
+      const response = await fetch(`https://nypqqbgrqiiaueqhrvgv.supabase.co/functions/v1/generate-content`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55cHFxYmdycWlpYXVlcWhydmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzUyMzAsImV4cCI6MjA2NDgxMTIzMH0.PdEGmQZYimCZyA-T0JNrNSoxtYzuJ85iYW6Jle3pkOs`,
         },
-        body: JSON.stringify(webhookData),
+        body: JSON.stringify({
+          topic: formData.topic,
+          description: formData.description,
+          tone: formData.tone,
+          audience: formData.audience,
+          platforms: formData.platforms,
+          hashtags: formData.hashtags,
+        }),
       });
 
-      console.log("=== WEBHOOK RESPONSE RECEIVED ===");
-      console.log("Response status:", response.status);
-      console.log("Response statusText:", response.statusText);
-      console.log("Response ok:", response.ok);
-      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
-
-      if (response.ok) {
-        // Try to parse JSON response, but handle empty responses gracefully
-        let responseData: any = {};
-        try {
-          const text = await response.text();
-          console.log("🚀 CRITICAL DEBUG: Raw response text:", text);
-          console.log("🚀 CRITICAL DEBUG: Text length:", text.length);
-          console.log("🚀 CRITICAL DEBUG: Text type:", typeof text);
-          console.log("🚀 CRITICAL DEBUG: Is empty?", text.trim() === "");
-          
-          if (text.trim()) {
-            responseData = JSON.parse(text);
-            console.log("🎯 WEBHOOK SUCCESS: Parsed response:", JSON.stringify(responseData, null, 2));
-            console.log("🎯 WEBHOOK SUCCESS: Response keys:", Object.keys(responseData));
-            console.log("🎯 WEBHOOK SUCCESS: Response type:", typeof responseData);
-            console.log("🎯 WEBHOOK SUCCESS: Is array?", Array.isArray(responseData));
-          } else {
-            console.log("💥 WEBHOOK EMPTY: No response content from webhook!");
-            responseData = { error: "Empty response from webhook" };
-          }
-        } catch (jsonError) {
-          console.log("💥 WEBHOOK ERROR: JSON parsing failed:", jsonError);
-          responseData = { error: "Invalid JSON from webhook" };
-        }
-
-        // Create content drafts using the generated content from webhook
-        console.log("=== FULL RESPONSE DEBUG ===");
-        console.log("Full responseData structure:", JSON.stringify(responseData, null, 2));
-        console.log("responseData keys:", Object.keys(responseData || {}));
-        console.log("===========================");
-        
-        const newDrafts = formData.platforms.map((platform, index) => {
-          // Map platform ID to proper case for webhook response
-          const platformMap: Record<string, string> = {
-            'linkedin': 'LinkedIn',
-            'facebook': 'Facebook', 
-            'instagram': 'Instagram',
-            'twitter': 'Twitter'
-          };
-          const platformName = platformMap[platform] || platform;
-          
-          console.log(`=== PARSING FOR ${platformName} ===`);
-          console.log("responseData:", responseData);
-          console.log("responseData type:", typeof responseData);
-          console.log("Is Array?:", Array.isArray(responseData));
-          
-          // Try multiple possible response structures
-          let generatedContent = "No content received from webhook";
-          let generatedHashtags = formData.hashtags.split(/[\s,]+/).filter(tag => tag.trim());
-          
-          // Try different possible response structures based on the webhook format
-          if (responseData) {
-            // Check if it's an array response (actual structure from webhook)
-            if (Array.isArray(responseData) && responseData[0]?.response?.body?.[0]?.output?.platform_posts) {
-              const platformPosts = responseData[0].response.body[0].output.platform_posts;
-              console.log(`All platform posts:`, platformPosts);
-              console.log(`Available platforms:`, Object.keys(platformPosts));
-              const platformData = platformPosts[platformName];
-              console.log(`Found array-nested platform data for ${platformName}:`, platformData);
-              if (platformData && platformData.post) {
-                generatedContent = platformData.post;
-                generatedHashtags = platformData.hashtags || generatedHashtags;
-                console.log(`✅ Successfully extracted content from array structure`);
-              }
-            }
-            // Check if content is directly in responseData
-            else if (responseData[platformName]) {
-              console.log(`Found direct platform data for ${platformName}:`, responseData[platformName]);
-              generatedContent = responseData[platformName]?.content || responseData[platformName]?.post || generatedContent;
-              generatedHashtags = responseData[platformName]?.hashtags || generatedHashtags;
-            }
-            // Check nested structure from the logs (original structure)
-            else if (responseData?.response?.body?.[0]?.output?.platform_posts) {
-              const platformPosts = responseData.response.body[0].output.platform_posts;
-              const platformData = platformPosts[platformName];
-              console.log(`Found nested platform data for ${platformName}:`, platformData);
-              if (platformData && platformData.post) {
-                generatedContent = platformData.post;
-                generatedHashtags = platformData.hashtags || generatedHashtags;
-                console.log(`✅ Successfully extracted content from nested structure`);
-              }
-            }
-            // Check if it's a simple structure
-            else if (responseData.content || responseData.post) {
-              console.log("Found simple content structure:", responseData);
-              generatedContent = responseData.content || responseData.post || generatedContent;
-              generatedHashtags = responseData.hashtags || generatedHashtags;
-            }
-            
-            // Final fallback debug
-            if (generatedContent === "No content received from webhook") {
-              console.log("❌ Failed to extract content. Full responseData structure:");
-              console.log(JSON.stringify(responseData, null, 2));
-            }
-          }
-          
-          console.log(`Final content for ${platformName}:`, generatedContent);
-          console.log(`Final hashtags for ${platformName}:`, generatedHashtags);
-          console.log("================================");
-          
-          const draft = {
-            id: `${Date.now()}-${index}`,
-            topic: formData.topic,
-            platform: platformName,
-            content: generatedContent,
-            hashtags: generatedHashtags,
-            status: "pending" as const,
-            createdAt: new Date().toISOString(),
-          };
-          
-          console.log("Created draft:", draft);
-          return draft;
-        });
-
-        // Store drafts in localStorage for approval queue
-        const existingDrafts = JSON.parse(localStorage.getItem('contentDrafts') || '[]');
-        const updatedDrafts = [...existingDrafts, ...newDrafts];
-        localStorage.setItem('contentDrafts', JSON.stringify(updatedDrafts));
-
-        toast({
-          title: "Content Generated",
-          description: `${newDrafts.length} content draft(s) created and sent to approval queue!`,
-        });
-        
-        // Reset form
-        setFormData({
-          topic: "",
-          description: "",
-          tone: "",
-          audience: "",
-          platforms: [],
-          hashtags: "",
-          files: [],
-        });
-      } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Failed to generate content: ${response.status}`);
       }
+
+      const { content } = await response.json();
+
+      // Create drafts from generated content
+      const newDrafts = content.map((item: any, index: number) => ({
+        id: `${Date.now()}-${index}`,
+        topic: formData.topic,
+        platform: item.platform,
+        content: item.content,
+        hashtags: item.hashtags,
+        status: "pending" as const,
+        createdAt: new Date().toISOString(),
+      }));
+
+      // Store drafts in localStorage for approval queue
+      const existingDrafts = JSON.parse(localStorage.getItem('contentDrafts') || '[]');
+      const updatedDrafts = [...existingDrafts, ...newDrafts];
+      localStorage.setItem('contentDrafts', JSON.stringify(updatedDrafts));
+
+      toast({
+        title: "Content Generated",
+        description: `${newDrafts.length} content draft(s) created and sent to approval queue!`,
+      });
+      
+      // Reset form
+      setFormData({
+        topic: "",
+        description: "",
+        tone: "",
+        audience: "",
+        platforms: [],
+        hashtags: "",
+        files: [],
+      });
     } catch (error) {
-      console.error("Error sending to webhook:", error);
+      console.error("Error generating content:", error);
       toast({
         title: "Error",
-        description: "Failed to send content request. Please try again.",
+        description: "Failed to generate content. Please try again.",
         variant: "destructive",
       });
     } finally {
