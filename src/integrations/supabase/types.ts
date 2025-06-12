@@ -9,6 +9,204 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          session_name: string | null
+          social_media_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_name?: string | null
+          social_media_account_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_name?: string | null
+          social_media_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_social_media_account_id_fkey"
+            columns: ["social_media_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_media_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_approvals: {
+        Row: {
+          approval_date: string
+          approved: boolean
+          content_generation_id: string
+          feedback: string | null
+          id: string
+          modified_content: string | null
+          user_id: string
+        }
+        Insert: {
+          approval_date?: string
+          approved: boolean
+          content_generation_id: string
+          feedback?: string | null
+          id?: string
+          modified_content?: string | null
+          user_id: string
+        }
+        Update: {
+          approval_date?: string
+          approved?: boolean
+          content_generation_id?: string
+          feedback?: string | null
+          id?: string
+          modified_content?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_approvals_content_generation_id_fkey"
+            columns: ["content_generation_id"]
+            isOneToOne: false
+            referencedRelation: "content_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_approvals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_generations: {
+        Row: {
+          audience: string | null
+          created_at: string
+          description: string | null
+          generated_content: string
+          hashtags: string | null
+          id: string
+          metadata: Json | null
+          session_id: string | null
+          social_media_account_id: string
+          status: Database["public"]["Enums"]["content_status"]
+          tone: Database["public"]["Enums"]["content_tone"] | null
+          topic: string
+          updated_at: string
+          user_feedback: string | null
+          user_id: string
+        }
+        Insert: {
+          audience?: string | null
+          created_at?: string
+          description?: string | null
+          generated_content: string
+          hashtags?: string | null
+          id?: string
+          metadata?: Json | null
+          session_id?: string | null
+          social_media_account_id: string
+          status?: Database["public"]["Enums"]["content_status"]
+          tone?: Database["public"]["Enums"]["content_tone"] | null
+          topic: string
+          updated_at?: string
+          user_feedback?: string | null
+          user_id: string
+        }
+        Update: {
+          audience?: string | null
+          created_at?: string
+          description?: string | null
+          generated_content?: string
+          hashtags?: string | null
+          id?: string
+          metadata?: Json | null
+          session_id?: string | null
+          social_media_account_id?: string
+          status?: Database["public"]["Enums"]["content_status"]
+          tone?: Database["public"]["Enums"]["content_tone"] | null
+          topic?: string
+          updated_at?: string
+          user_feedback?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_generations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_generations_social_media_account_id_fkey"
+            columns: ["social_media_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_media_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_generations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -36,6 +234,94 @@ export type Database = {
         }
         Relationships: []
       }
+      rag_knowledge_base: {
+        Row: {
+          content_type: string
+          context_metadata: Json
+          created_at: string
+          id: string
+          platform: Database["public"]["Enums"]["social_platform"]
+          success_rate: number
+          successful_pattern: string
+          updated_at: string
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          content_type: string
+          context_metadata?: Json
+          created_at?: string
+          id?: string
+          platform: Database["public"]["Enums"]["social_platform"]
+          success_rate?: number
+          successful_pattern: string
+          updated_at?: string
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          content_type?: string
+          context_metadata?: Json
+          created_at?: string
+          id?: string
+          platform?: Database["public"]["Enums"]["social_platform"]
+          success_rate?: number
+          successful_pattern?: string
+          updated_at?: string
+          usage_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rag_knowledge_base_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_media_accounts: {
+        Row: {
+          account_handle: string | null
+          account_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          platform: Database["public"]["Enums"]["social_platform"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_handle?: string | null
+          account_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          platform: Database["public"]["Enums"]["social_platform"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_handle?: string | null
+          account_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          platform?: Database["public"]["Enums"]["social_platform"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_media_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -44,7 +330,26 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      content_status:
+        | "generated"
+        | "approved"
+        | "rejected"
+        | "modified"
+        | "published"
+      content_tone:
+        | "professional"
+        | "casual"
+        | "friendly"
+        | "authoritative"
+        | "humorous"
+        | "inspirational"
+      social_platform:
+        | "instagram"
+        | "facebook"
+        | "linkedin"
+        | "twitter"
+        | "tiktok"
+        | "youtube"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -159,6 +464,30 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      content_status: [
+        "generated",
+        "approved",
+        "rejected",
+        "modified",
+        "published",
+      ],
+      content_tone: [
+        "professional",
+        "casual",
+        "friendly",
+        "authoritative",
+        "humorous",
+        "inspirational",
+      ],
+      social_platform: [
+        "instagram",
+        "facebook",
+        "linkedin",
+        "twitter",
+        "tiktok",
+        "youtube",
+      ],
+    },
   },
 } as const
