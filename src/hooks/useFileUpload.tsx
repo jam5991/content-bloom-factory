@@ -19,7 +19,7 @@ export const useFileUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
-  const uploadFile = async (file: File): Promise<UploadedFile | null> => {
+  const uploadFile = async (file: File, campaignId?: string): Promise<UploadedFile | null> => {
     if (!user) {
       toast({
         title: "Error",
@@ -89,6 +89,7 @@ export const useFileUpload = () => {
           file_size: file.size,
           mime_type: file.type,
           storage_path: uploadData.path,
+          campaign_id: campaignId || null,
         })
         .select()
         .single();
@@ -127,13 +128,13 @@ export const useFileUpload = () => {
     }
   };
 
-  const uploadFiles = async (files: File[]): Promise<UploadedFile[]> => {
+  const uploadFiles = async (files: File[], campaignId?: string): Promise<UploadedFile[]> => {
     setUploading(true);
     const uploadedFiles: UploadedFile[] = [];
 
     try {
       for (const file of files) {
-        const uploadedFile = await uploadFile(file);
+        const uploadedFile = await uploadFile(file, campaignId);
         if (uploadedFile) {
           uploadedFiles.push(uploadedFile);
         }
