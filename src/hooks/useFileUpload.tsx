@@ -29,6 +29,29 @@ export const useFileUpload = () => {
       return null;
     }
 
+    // File size validation (50MB limit)
+    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: `${file.name} exceeds the 50MB limit. Please choose a smaller file.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    // File type validation
+    const allowedTypes = ['image/', 'video/', 'application/pdf'];
+    const isAllowedType = allowedTypes.some(type => file.type.startsWith(type));
+    if (!isAllowedType) {
+      toast({
+        title: "Invalid file type",
+        description: `${file.name} is not a supported file type. Please upload images, videos, or PDFs.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
     const fileId = crypto.randomUUID();
     const fileExtension = file.name.split('.').pop();
     const fileName = `${fileId}.${fileExtension}`;
@@ -158,10 +181,49 @@ export const useFileUpload = () => {
     }
   };
 
+  const copyToPublicBucket = async (fileId: string, storagePath: string) => {
+    try {
+      // Download from private bucket
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('content-media')
+        .download(storagePath);
+
+      if (downloadError) {
+        throw downloadError;
+      }
+
+      // Upload to public bucket
+      const publicPath = storagePath; // Keep same path structure
+      const { error: uploadError } = await supabase.storage
+        .from('approved-content')
+        .upload(publicPath, fileData, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      toast({
+        title: "File made public",
+        description: "File is now publicly accessible",
+      });
+    } catch (error) {
+      console.error('Error copying to public bucket:', error);
+      toast({
+        title: "Error",
+        description: "Failed to make file public",
+        variant: "destructive",
+      });
+    }
+  };
+
   return {
     uploadFile,
     uploadFiles,
     deleteFile,
+    copyToPublicBucket,
     uploading,
     uploadProgress,
   };

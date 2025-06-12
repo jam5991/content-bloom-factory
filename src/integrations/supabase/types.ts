@@ -407,7 +407,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      copy_to_public_bucket: {
+        Args: { source_path: string; dest_path: string }
+        Returns: undefined
+      }
     }
     Enums: {
       content_status:

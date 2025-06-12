@@ -365,9 +365,9 @@ const CreateContent = () => {
                     <p className="text-charcoal font-medium">
                       Drop files here or click to upload
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Support for images, videos, and PDFs
-                    </p>
+                     <p className="text-sm text-muted-foreground">
+                       Support for images, videos, and PDFs (max 50MB each)
+                     </p>
                   </div>
                   <input
                     type="file"
@@ -407,10 +407,31 @@ const CreateContent = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {uploadedFiles.map((file) => {
                         const IconComponent = getFileIcon(file.mimeType);
+                        const isImage = file.mimeType.startsWith('image/');
+                        
                         return (
                           <div key={file.id} className="flex items-center justify-between p-3 bg-sage/5 rounded-lg border border-sage/20">
                             <div className="flex items-center space-x-3 min-w-0 flex-1">
-                              <IconComponent className="h-5 w-5 text-sage flex-shrink-0" />
+                              {isImage ? (
+                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-sage/10 flex-shrink-0">
+                                  <img 
+                                    src={file.publicUrl} 
+                                    alt={file.fileName}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      // Fallback to icon if image fails to load
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      target.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                  />
+                                  <div className="hidden w-full h-full flex items-center justify-center">
+                                    <IconComponent className="h-6 w-6 text-sage" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <IconComponent className="h-5 w-5 text-sage flex-shrink-0" />
+                              )}
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-charcoal truncate">
                                   {file.fileName}
