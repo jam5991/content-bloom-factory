@@ -118,6 +118,13 @@ const CreateContent = () => {
           platforms: formData.platforms,
           hashtags: formData.hashtags,
           userId: user.id,
+          mediaFiles: uploadedFiles.map(file => ({
+            id: file.id,
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+            publicUrl: file.publicUrl,
+            fileSize: file.fileSize
+          })),
         }),
       });
 
@@ -177,7 +184,7 @@ const CreateContent = () => {
         }
 
         // Save content generation
-        await supabase
+        const { data: contentGeneration, error: contentError } = await supabase
           .from('content_generations')
           .insert({
             user_id: user.id,
@@ -185,8 +192,29 @@ const CreateContent = () => {
             topic: formData.topic,
             generated_content: item.content,
             status: 'generated',
-            metadata: { hashtags: item.hashtags }
-          });
+            metadata: { 
+              hashtags: item.hashtags,
+              mediaReferences: item.mediaReferences || []
+            }
+          })
+          .select()
+          .single();
+
+        if (contentError) {
+          throw contentError;
+        }
+
+        // Link uploaded media files to this content generation
+        if (uploadedFiles.length > 0 && contentGeneration) {
+          const mediaLinks = uploadedFiles.map(file => ({
+            content_generation_id: contentGeneration.id,
+            media_file_id: file.id
+          }));
+
+          await supabase
+            .from('content_generation_media')
+            .insert(mediaLinks);
+        }
       }
 
       toast({

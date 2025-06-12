@@ -11,6 +11,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface MediaFile {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  publicUrl: string;
+  fileSize: number;
+}
+
 interface ContentRequest {
   topic: string;
   description: string;
@@ -19,6 +27,7 @@ interface ContentRequest {
   platforms: string[];
   hashtags: string;
   userId?: string;
+  mediaFiles?: MediaFile[];
 }
 
 serve(async (req) => {
@@ -28,7 +37,7 @@ serve(async (req) => {
 
   try {
     const requestData: ContentRequest = await req.json();
-    const { topic, description, tone, audience, platforms, hashtags, userId } = requestData;
+    const { topic, description, tone, audience, platforms, hashtags, userId, mediaFiles = [] } = requestData;
 
     const generatedContent = [];
     
@@ -53,24 +62,41 @@ serve(async (req) => {
 
     // Generate content for each platform
     for (const platform of platforms) {
+      // Create media context for AI
+      let mediaContext = '';
+      const mediaReferences: string[] = [];
+      
+      if (mediaFiles.length > 0) {
+        mediaContext = '\n\nAvailable Media Files:\n';
+        mediaFiles.forEach((file, index) => {
+          const mediaType = file.mimeType.startsWith('image/') ? 'Image' : 
+                           file.mimeType.startsWith('video/') ? 'Video' : 'Document';
+          mediaContext += `- ${mediaType} ${index + 1}: "${file.fileName}" (${mediaType.toLowerCase()})\n`;
+          mediaReferences.push(`${mediaType} ${index + 1}: ${file.fileName}`);
+        });
+        mediaContext += '\nYou can reference these files in your content by mentioning them (e.g., "See the image above" or "Check out the video"). Be specific about which media to use for maximum engagement.';
+      }
+
       const systemPrompt = `You are a social media content expert. Generate engaging ${platform} content that is optimized for the platform's specific format and audience.
 
 Platform Guidelines:
-- Instagram: Visual-focused, use relevant hashtags, engaging captions
-- Facebook: Community-focused, longer form content allowed
-- LinkedIn: Professional tone, industry insights, thought leadership
-- Twitter/X: Concise, punchy, conversation-starting
+- Instagram: Visual-focused, use relevant hashtags, engaging captions, reference images/videos when available
+- Facebook: Community-focused, longer form content allowed, can include media descriptions
+- LinkedIn: Professional tone, industry insights, thought leadership, reference documents/images professionally
+- Twitter/X: Concise, punchy, conversation-starting, brief media references
 
 Requirements:
 - Topic: ${topic}
 - Description: ${description}
 - Tone: ${tone || 'professional'}
 - Target Audience: ${audience || 'general audience'}
-- Include relevant hashtags${ragPatterns}
+- Include relevant hashtags${mediaContext}${ragPatterns}
+
+If media files are available, naturally incorporate references to them in your content. Make the content engaging and mention how the media enhances the message.
 
 Generate only the post content, no additional explanation.`;
 
-      const userPrompt = `Create a ${platform} post about: ${topic}${description ? '\n\nAdditional context: ' + description : ''}`;
+      const userPrompt = `Create a ${platform} post about: ${topic}${description ? '\n\nAdditional context: ' + description : ''}${mediaFiles.length > 0 ? '\n\nIncorporate references to the available media files to make the content more engaging.' : ''}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -102,7 +128,8 @@ Generate only the post content, no additional explanation.`;
       generatedContent.push({
         platform: platform.charAt(0).toUpperCase() + platform.slice(1),
         content: content,
-        hashtags: contentHashtags
+        hashtags: contentHashtags,
+        mediaReferences: mediaReferences
       });
     }
 
