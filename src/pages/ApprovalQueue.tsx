@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, CheckCircle, X, RefreshCw, Calendar } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ContentDraft {
   id: string;
@@ -19,37 +21,136 @@ interface ContentDraft {
 }
 
 const ApprovalQueue = () => {
+  const { user } = useAuth();
   const [drafts, setDrafts] = useState<ContentDraft[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Clear localStorage and start fresh
+  // Load content from database
   useEffect(() => {
-    // Clear any existing localStorage data
-    localStorage.removeItem('contentDrafts');
-    setDrafts([]);
-  }, []);
+    if (user) {
+      loadContentFromDatabase();
+    }
+  }, [user]);
 
+  const loadContentFromDatabase = async () => {
+    try {
+      const { data: contentGenerations, error } = await supabase
+        .from('content_generations')
+        .select(`
+          id,
+          topic,
+          generated_content,
+          status,
+          created_at,
+          metadata,
+          social_media_accounts!inner(platform)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('Error loading content:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load content from database",
+          variant: "destructive",
+        });
+        return;
+      }
 
-  const handleApprove = (id: string) => {
-    setDrafts(prev => prev.map(draft => 
-      draft.id === id ? { ...draft, status: "approved" as const } : draft
-    ));
-    toast({
-      title: "Content Approved",
-      description: "Content has been approved and scheduled for publishing",
-    });
+      const formattedDrafts: ContentDraft[] = contentGenerations.map((item: any) => ({
+        id: item.id,
+        topic: item.topic,
+        platform: item.social_media_accounts.platform,
+        content: item.generated_content,
+        hashtags: item.metadata?.hashtags || [],
+        status: item.status === 'generated' ? 'pending' : item.status,
+        createdAt: item.created_at,
+      }));
+
+      setDrafts(formattedDrafts);
+    } catch (error) {
+      console.error('Error loading content:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load content",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setDrafts(prev => prev.map(draft => 
-      draft.id === id ? { ...draft, status: "rejected" as const } : draft
-    ));
-    toast({
-      title: "Content Rejected",
-      description: "Content has been rejected and moved to drafts",
-      variant: "destructive",
-    });
+
+
+  const handleApprove = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('content_generations')
+        .update({ status: 'approved' })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error approving content:', error);
+        toast({
+          title: "Error",
+          description: "Failed to approve content",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setDrafts(prev => prev.map(draft => 
+        draft.id === id ? { ...draft, status: "approved" as const } : draft
+      ));
+      toast({
+        title: "Content Approved",
+        description: "Content has been approved and scheduled for publishing",
+      });
+    } catch (error) {
+      console.error('Error approving content:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve content",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('content_generations')
+        .update({ status: 'rejected' })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error rejecting content:', error);
+        toast({
+          title: "Error",
+          description: "Failed to reject content",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setDrafts(prev => prev.map(draft => 
+        draft.id === id ? { ...draft, status: "rejected" as const } : draft
+      ));
+      toast({
+        title: "Content Rejected",
+        description: "Content has been rejected and moved to drafts",
+        variant: "destructive",
+      });
+    } catch (error) {
+      console.error('Error rejecting content:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject content",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRegenerate = (id: string) => {
