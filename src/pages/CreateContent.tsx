@@ -133,16 +133,26 @@ const CreateContent = () => {
 
       // Save content to database
       for (const item of content) {
-        // Create social media account if needed
-        const { data: account } = await supabase
+        // Get or create social media account
+        let { data: account } = await supabase
           .from('social_media_accounts')
-          .upsert({
-            user_id: user.id,
-            platform: item.platform.toLowerCase(),
-            account_name: `${item.platform} Account`
-          })
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .eq('platform', item.platform.toLowerCase())
+          .maybeSingle();
+
+        if (!account) {
+          const { data: newAccount } = await supabase
+            .from('social_media_accounts')
+            .insert({
+              user_id: user.id,
+              platform: item.platform.toLowerCase(),
+              account_name: `${item.platform} Account`
+            })
+            .select('id')
+            .single();
+          account = newAccount;
+        }
 
         if (!account) {
           throw new Error('Failed to create social media account');
