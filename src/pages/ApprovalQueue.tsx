@@ -104,9 +104,29 @@ const ApprovalQueue = () => {
       setDrafts(prev => prev.map(draft => 
         draft.id === id ? { ...draft, status: "approved" as const } : draft
       ));
+
+      // Trigger RAG pattern analysis for the approved content
+      try {
+        await fetch(`https://nypqqbgrqiiaueqhrvgv.supabase.co/functions/v1/analyze-content-patterns`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55cHFxYmdycWlpYXVlcWhydmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzUyMzAsImV4cCI6MjA2NDgxMTIzMH0.PdEGmQZYimCZyA-T0JNrNSoxtYzuJ85iYW6Jle3pkOs`,
+          },
+          body: JSON.stringify({
+            contentId: id,
+            userId: user.id,
+          }),
+        });
+        console.log('RAG pattern analysis triggered for content:', id);
+      } catch (ragError) {
+        console.error('Error triggering RAG analysis:', ragError);
+        // Don't show error to user - this is background learning
+      }
+
       toast({
         title: "Content Approved",
-        description: "Content has been approved and scheduled for publishing",
+        description: "Content has been approved and patterns learned for future generation",
       });
     } catch (error) {
       console.error('Error approving content:', error);

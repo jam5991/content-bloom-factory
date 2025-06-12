@@ -99,6 +99,7 @@ const CreateContent = () => {
           audience: formData.audience,
           platforms: formData.platforms,
           hashtags: formData.hashtags,
+          userId: user.id,
         }),
       });
 

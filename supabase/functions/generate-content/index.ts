@@ -1,7 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +18,7 @@ interface ContentRequest {
   audience: string;
   platforms: string[];
   hashtags: string;
+  userId?: string;
 }
 
 serve(async (req) => {
@@ -24,9 +28,28 @@ serve(async (req) => {
 
   try {
     const requestData: ContentRequest = await req.json();
-    const { topic, description, tone, audience, platforms, hashtags } = requestData;
+    const { topic, description, tone, audience, platforms, hashtags, userId } = requestData;
 
     const generatedContent = [];
+    
+    // Initialize Supabase client for RAG queries
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Get relevant patterns from RAG knowledge base if userId is provided
+    let ragPatterns = '';
+    if (userId) {
+      const { data: patterns } = await supabase
+        .from('rag_knowledge_base')
+        .select('successful_pattern, context_metadata, success_rate')
+        .eq('user_id', userId)
+        .order('success_rate', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(3);
+      
+      if (patterns && patterns.length > 0) {
+        ragPatterns = `\n\nUser's Successful Content Patterns (use these as inspiration):\n${patterns.map(p => `- ${p.successful_pattern}`).join('\n')}`;
+      }
+    }
 
     // Generate content for each platform
     for (const platform of platforms) {
@@ -43,7 +66,7 @@ Requirements:
 - Description: ${description}
 - Tone: ${tone || 'professional'}
 - Target Audience: ${audience || 'general audience'}
-- Include relevant hashtags
+- Include relevant hashtags${ragPatterns}
 
 Generate only the post content, no additional explanation.`;
 
