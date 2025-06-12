@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, CheckCircle, Clock, X, LogOut } from "lucide-react";
+import { Plus, Calendar, CheckCircle, Clock, X, LogOut, Home, FileText, Users, BarChart3, Settings, Play } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -90,178 +90,251 @@ const Dashboard = () => {
     }
   };
 
+  const sidebarItems = [
+    { icon: Home, label: "Dashboard", href: "/dashboard", active: true },
+    { icon: Plus, label: "Create", href: "/create", active: false },
+    { icon: FileText, label: "Content", href: "/approval-queue", active: false },
+    { icon: BarChart3, label: "Analytics", href: "#", active: false },
+    { icon: Settings, label: "Settings", href: "#", active: false },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-warm-white via-cream to-sage/10">
-      {/* Navigation */}
-      <nav className="bg-warm-white/80 backdrop-blur-md border-b border-sage/20">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="text-2xl font-serif font-semibold text-charcoal">
-            ContentCraft
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-card border-r border-border flex flex-col">
+        {/* Logo */}
+        <div className="p-6 border-b border-border">
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-primary-foreground font-bold">C</span>
+            </div>
+            <span className="text-xl font-serif font-semibold text-foreground">ContentCraft</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/create">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Content
-              </Button>
-            </Link>
-            <Link to="/approval-queue">
-              <Button variant="outline" className="border-sage text-charcoal hover:bg-sage/10">
-                Approval Queue
-              </Button>
-            </Link>
-            <Button 
-              variant="outline" 
-              onClick={handleSignOut}
-              className="border-sage text-charcoal hover:bg-sage/10"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <div className="space-y-1">
+            {sidebarItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.href}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                  item.active 
+                    ? "bg-destructive text-destructive-foreground" 
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </nav>
+
+        {/* User Actions */}
+        <div className="p-4 border-t border-border">
+          <Button 
+            variant="ghost" 
+            onClick={handleSignOut}
+            className="w-full justify-start text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4 mr-3" />
+            Sign Out
+          </Button>
+        </div>
+
+        {/* Trial Info */}
+        <div className="p-4 bg-muted/30">
+          <div className="text-sm text-muted-foreground mb-1">Trial</div>
+          <div className="text-xs text-muted-foreground mb-2">Trial ends in 6 days.</div>
+          <div className="text-2xl font-bold text-destructive">{contentItems.length}</div>
+          <div className="text-xs text-muted-foreground">Content items</div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Header */}
+        <header className="bg-card border-b border-border p-6 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-serif font-semibold text-foreground">Content Setup</h1>
+            <Button variant="outline" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 border-0">
+              <Play className="h-4 w-4 mr-2" />
+              Watch Tutorial
             </Button>
           </div>
-        </div>
-      </nav>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Academy</span>
+            <Button variant="ghost" size="sm">
+              <Users className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
 
-      <div className="container mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-serif font-semibold text-charcoal mb-4">
-            Dashboard
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Manage your content pipeline and track performance
-          </p>
-        </div>
+        {/* Content Area */}
+        <div className="flex-1 p-6 bg-muted/20">
+          <div className="max-w-4xl">
+            {/* Description */}
+            <p className="text-muted-foreground mb-8">
+              Set up your content pipeline once, and let our AI generate on-brand content assets.
+            </p>
 
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-12">
-          <Card className="bg-warm-white border-sage/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Posts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-serif font-semibold text-charcoal">
-                {contentItems.length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-warm-white border-sage/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Published
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-serif font-semibold text-sage">
-                {contentItems.filter(item => item.status === "published").length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-warm-white border-sage/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Approval
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-serif font-semibold text-primary">
-                {contentItems.filter(item => item.status === "draft").length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-warm-white border-sage/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Scheduled
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-serif font-semibold text-terracotta">
-                {contentItems.filter(item => item.status === "approved").length}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Content List */}
-        <Card className="bg-warm-white border-sage/20">
-          <CardHeader>
-            <CardTitle className="text-2xl font-serif text-charcoal">
-              Recent Content
-            </CardTitle>
-            <CardDescription>
-              Track your content across all platforms
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading content...</p>
-              </div>
-            ) : contentItems.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-sage mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold text-charcoal mb-2">No content yet</h3>
-                <p className="text-muted-foreground mb-4">Start creating content to see it here</p>
-                <Link to="/create">
-                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Your First Post
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {contentItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 border border-sage/20 rounded-lg hover:bg-cream/30 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-charcoal mb-2">
-                        {item.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mb-2">
-                        {item.platform.map((platform) => (
-                          <Badge
-                            key={platform}
-                            variant="outline"
-                            className="border-sage/30 text-sage capitalize"
-                          >
-                            {platform}
-                          </Badge>
-                        ))}
+            {/* Setup Steps */}
+            <div className="space-y-6">
+              {/* Step 1 */}
+              <Card className="bg-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium">1</span>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Created: {new Date(item.createdAt).toLocaleDateString()}
-                        {item.scheduledAt && (
-                          <span className="ml-4">
-                            Scheduled: {new Date(item.scheduledAt).toLocaleString()}
-                          </span>
-                        )}
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Connect Social Media Accounts</h3>
+                        <p className="text-sm text-muted-foreground">Link your social platforms for seamless publishing</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className={getStatusColor(item.status)}>
-                        {getStatusIcon(item.status)}
-                        <span className="ml-1 capitalize">{item.status}</span>
-                      </Badge>
-                      <Button variant="ghost" size="sm" className="text-charcoal hover:text-primary">
-                        View
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary">Required</Badge>
+                      <Button size="sm">
+                        Setup
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 2 */}
+              <Card className="bg-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium">2</span>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Create Your First Content</h3>
+                        <p className="text-sm text-muted-foreground">Start generating content with our AI tools</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary">Required</Badge>
+                      <Link to="/create">
+                        <Button size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 3 */}
+              <Card className="bg-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium">3</span>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Review Content Pipeline</h3>
+                        <p className="text-sm text-muted-foreground">Approve and schedule your generated content</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline">Recommended</Badge>
+                      <Link to="/approval-queue">
+                        <Button variant="outline" size="sm">
+                          Review
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 4 */}
+              <Card className="bg-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium">4</span>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Monitor Performance</h3>
+                        <p className="text-sm text-muted-foreground">Track engagement and optimize your content strategy</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline">Optional</Badge>
+                      <Button variant="outline" size="sm">
+                        View Analytics
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Content Section */}
+            {contentItems.length > 0 && (
+              <Card className="bg-card mt-8">
+                <CardHeader>
+                  <CardTitle className="text-xl font-serif text-foreground">Recent Content</CardTitle>
+                  <CardDescription>Your latest generated content items</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Loading content...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {contentItems.slice(0, 3).map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground">{item.title}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              {item.platform.map((platform) => (
+                                <Badge key={platform} variant="outline" className="text-xs capitalize">
+                                  {platform}
+                                </Badge>
+                              ))}
+                              <Badge className={getStatusColor(item.status)}>
+                                {getStatusIcon(item.status)}
+                                <span className="ml-1 capitalize">{item.status}</span>
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            View
+                          </Button>
+                        </div>
+                      ))}
+                      {contentItems.length > 3 && (
+                        <div className="text-center pt-2">
+                          <Link to="/approval-queue">
+                            <Button variant="outline" size="sm">
+                              View All Content
+                            </Button>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
