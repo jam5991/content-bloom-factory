@@ -108,6 +108,28 @@ const CreateContent = () => {
 
       const { content } = await response.json();
 
+      // Ensure user profile exists
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Check if profile exists, create if not
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || user.email
+          });
+      }
+
       // Save content to database
       for (const item of content) {
         // Create social media account if needed
@@ -120,6 +142,10 @@ const CreateContent = () => {
           })
           .select('id')
           .single();
+
+        if (!account) {
+          throw new Error('Failed to create social media account');
+        }
 
         // Save content generation
         await supabase
