@@ -22,44 +22,14 @@ const ApprovalQueue = () => {
   const [drafts, setDrafts] = useState<ContentDraft[]>([]);
   const { toast } = useToast();
 
-  // Load drafts from localStorage on component mount and listen for changes
+  // Clear localStorage and start fresh
   useEffect(() => {
-    const loadDrafts = () => {
-      const storedDrafts = localStorage.getItem('contentDrafts');
-      console.log("=== APPROVAL QUEUE DEBUG ===");
-      console.log("Raw localStorage content:", storedDrafts);
-      if (storedDrafts) {
-        const parsedDrafts = JSON.parse(storedDrafts);
-        console.log("Parsed drafts:", parsedDrafts);
-        console.log("Number of drafts:", parsedDrafts.length);
-        setDrafts(parsedDrafts);
-      } else {
-        console.log("No drafts found in localStorage");
-        setDrafts([]);
-      }
-    };
-
-    // Load initially
-    loadDrafts();
-
-    // Listen for storage changes from other tabs/windows
-    window.addEventListener('storage', loadDrafts);
-    
-    // Also check for updates periodically (in case user navigates back to this page)
-    const interval = setInterval(loadDrafts, 1000);
-
-    return () => {
-      window.removeEventListener('storage', loadDrafts);
-      clearInterval(interval);
-    };
+    // Clear any existing localStorage data
+    localStorage.removeItem('contentDrafts');
+    setDrafts([]);
   }, []);
 
-  // Update localStorage whenever drafts change
-  useEffect(() => {
-    if (drafts.length > 0) {
-      localStorage.setItem('contentDrafts', JSON.stringify(drafts));
-    }
-  }, [drafts]);
+
 
   const handleApprove = (id: string) => {
     setDrafts(prev => prev.map(draft => 

@@ -116,10 +116,8 @@ const CreateContent = () => {
         createdAt: new Date().toISOString(),
       }));
 
-      // Store drafts in localStorage for approval queue
-      const existingDrafts = JSON.parse(localStorage.getItem('contentDrafts') || '[]');
-      const updatedDrafts = [...existingDrafts, ...newDrafts];
-      localStorage.setItem('contentDrafts', JSON.stringify(updatedDrafts));
+      // Clear any existing localStorage data
+      localStorage.removeItem('contentDrafts');
 
       toast({
         title: "Content Generated",
