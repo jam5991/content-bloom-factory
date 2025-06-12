@@ -87,19 +87,34 @@ const ApprovalQueue = () => {
 
   const handleApprove = async (id: string) => {
     try {
-      const { error } = await supabase
+      // Update content_generations status
+      const { error: updateError } = await supabase
         .from('content_generations')
         .update({ status: 'approved' })
         .eq('id', id);
 
-      if (error) {
-        console.error('Error approving content:', error);
+      if (updateError) {
+        console.error('Error approving content:', updateError);
         toast({
           title: "Error",
           description: "Failed to approve content",
           variant: "destructive",
         });
         return;
+      }
+
+      // Insert approval record for audit trail
+      const { error: approvalError } = await supabase
+        .from('content_approvals')
+        .insert({
+          content_generation_id: id,
+          user_id: user.id,
+          approved: true,
+        });
+
+      if (approvalError) {
+        console.error('Error creating approval record:', approvalError);
+        // Don't block the flow, just log the error
       }
 
       setDrafts(prev => prev.map(draft => 
@@ -141,19 +156,34 @@ const ApprovalQueue = () => {
 
   const handleReject = async (id: string) => {
     try {
-      const { error } = await supabase
+      // Update content_generations status
+      const { error: updateError } = await supabase
         .from('content_generations')
         .update({ status: 'rejected' })
         .eq('id', id);
 
-      if (error) {
-        console.error('Error rejecting content:', error);
+      if (updateError) {
+        console.error('Error rejecting content:', updateError);
         toast({
           title: "Error",
           description: "Failed to reject content",
           variant: "destructive",
         });
         return;
+      }
+
+      // Insert rejection record for audit trail
+      const { error: approvalError } = await supabase
+        .from('content_approvals')
+        .insert({
+          content_generation_id: id,
+          user_id: user.id,
+          approved: false,
+        });
+
+      if (approvalError) {
+        console.error('Error creating rejection record:', approvalError);
+        // Don't block the flow, just log the error
       }
 
       setDrafts(prev => prev.map(draft => 
