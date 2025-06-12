@@ -24,6 +24,7 @@ const ApprovalQueue = () => {
   const { user } = useAuth();
   const [drafts, setDrafts] = useState<ContentDraft[]>([]);
   const [loading, setLoading] = useState(true);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Load content from database
@@ -173,12 +174,93 @@ const ApprovalQueue = () => {
     }
   };
 
-  const handleRegenerate = (id: string) => {
-    toast({
-      title: "Regenerating Content",
-      description: "AI is creating a new version based on your feedback",
-    });
-    // TODO: Implement regeneration logic
+  const handleRegenerate = async (id: string) => {
+    setRegeneratingId(id);
+    
+    try {
+      const draft = drafts.find(d => d.id === id);
+      if (!draft) return;
+
+      // Get the original content data
+      const { data: contentData, error: fetchError } = await supabase
+        .from('content_generations')
+        .select(`
+          topic,
+          description,
+          tone,
+          audience,
+          hashtags,
+          user_feedback,
+          social_media_accounts!inner(platform)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Failed to fetch content details');
+      }
+
+      // Call the regeneration edge function
+      const response = await fetch(`https://nypqqbgrqiiaueqhrvgv.supabase.co/functions/v1/generate-content`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55cHFxYmdycWlpYXVlcWhydmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzUyMzAsImV4cCI6MjA2NDgxMTIzMH0.PdEGmQZYimCZyA-T0JNrNSoxtYzuJ85iYW6Jle3pkOs`,
+        },
+        body: JSON.stringify({
+          topic: contentData.topic,
+          description: contentData.description || `Please regenerate this content with user feedback: ${contentData.user_feedback || 'No specific feedback provided'}`,
+          tone: contentData.tone,
+          audience: contentData.audience,
+          platforms: [contentData.social_media_accounts.platform],
+          hashtags: contentData.hashtags || "",
+          userId: user.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to regenerate content: ${response.status}`);
+      }
+
+      const { content } = await response.json();
+      const newContent = content[0];
+
+      // Update the database with new content
+      const { error: updateError } = await supabase
+        .from('content_generations')
+        .update({
+          generated_content: newContent.content,
+          metadata: { hashtags: newContent.hashtags },
+          status: 'generated'
+        })
+        .eq('id', id);
+
+      if (updateError) {
+        throw new Error('Failed to save regenerated content');
+      }
+
+      // Update local state
+      setDrafts(prev => prev.map(draft => 
+        draft.id === id 
+          ? { ...draft, content: newContent.content, hashtags: newContent.hashtags, status: 'pending' }
+          : draft
+      ));
+
+      toast({
+        title: "Content Regenerated",
+        description: "New version created successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error regenerating content:', error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRegeneratingId(null);
+    }
   };
 
   const pendingDrafts = drafts.filter(draft => draft.status === "pending");
@@ -186,7 +268,15 @@ const ApprovalQueue = () => {
   const rejectedDrafts = drafts.filter(draft => draft.status === "rejected");
 
   const renderDraftCard = (draft: ContentDraft, showActions: boolean = true) => (
-    <Card key={draft.id} className="bg-warm-white border-sage/20 shadow-lg">
+    <Card key={draft.id} className="bg-warm-white border-sage/20 shadow-lg relative">
+      {regeneratingId === draft.id && (
+        <div className="absolute inset-0 bg-charcoal/50 backdrop-blur-sm rounded-lg z-10 flex items-center justify-center">
+          <div className="flex flex-col items-center space-y-4">
+            <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+            <p className="text-primary font-medium">Regenerating content...</p>
+          </div>
+        </div>
+      )}
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -266,10 +356,11 @@ const ApprovalQueue = () => {
             <Button
               variant="outline"
               onClick={() => handleRegenerate(draft.id)}
-              className="border-primary text-primary hover:bg-primary/10"
+              disabled={regeneratingId === draft.id}
+              className="border-primary text-primary hover:bg-primary/10 disabled:opacity-50"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Regenerate
+              <RefreshCw className={`h-4 w-4 mr-2 ${regeneratingId === draft.id ? 'animate-spin' : ''}`} />
+              {regeneratingId === draft.id ? 'Regenerating...' : 'Regenerate'}
             </Button>
             <Button
               variant="destructive"
