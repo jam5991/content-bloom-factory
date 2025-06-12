@@ -9,9 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, ArrowLeft } from "lucide-react";
+import { Upload, ArrowLeft, X, FileImage, FileVideo, File } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 
 const CreateContent = () => {
   const { user } = useAuth();
@@ -22,10 +23,11 @@ const CreateContent = () => {
     audience: "",
     platforms: [] as string[],
     hashtags: "",
-    files: [] as File[],
   });
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const { uploadFiles, deleteFile, uploading, uploadProgress } = useFileUpload();
 
   const platforms = [
     { id: "instagram", name: "Instagram" },
@@ -65,9 +67,25 @@ const CreateContent = () => {
     }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setFormData(prev => ({ ...prev, files: [...prev.files, ...files] }));
+    if (files.length > 0) {
+      const uploadedFileResults = await uploadFiles(files);
+      setUploadedFiles(prev => [...prev, ...uploadedFileResults]);
+    }
+    // Reset the input
+    e.target.value = '';
+  };
+
+  const handleRemoveFile = async (fileId: string, storagePath: string) => {
+    await deleteFile(fileId, storagePath);
+    setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return FileImage;
+    if (mimeType.startsWith('video/')) return FileVideo;
+    return File;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -184,8 +202,8 @@ const CreateContent = () => {
         audience: "",
         platforms: [],
         hashtags: "",
-        files: [],
       });
+      setUploadedFiles([]);
     } catch (error) {
       console.error("Error generating content:", error);
       toast({
@@ -359,16 +377,62 @@ const CreateContent = () => {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                 </div>
-                {formData.files.length > 0 && (
+                
+                {/* Upload Progress */}
+                {Object.keys(uploadProgress).length > 0 && (
+                  <div className="space-y-2">
+                    {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                      <div key={fileName} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-charcoal">{fileName}</span>
+                          <span className="text-muted-foreground">{progress}%</span>
+                        </div>
+                        <div className="w-full bg-sage/20 rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all duration-300" 
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Uploaded Files */}
+                {uploadedFiles.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-sm font-medium text-charcoal mb-2">
-                      Uploaded files:
+                    <p className="text-sm font-medium text-charcoal mb-3">
+                      Uploaded files ({uploadedFiles.length}):
                     </p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      {formData.files.map((file, index) => (
-                        <li key={index}>• {file.name}</li>
-                      ))}
-                    </ul>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {uploadedFiles.map((file) => {
+                        const IconComponent = getFileIcon(file.mimeType);
+                        return (
+                          <div key={file.id} className="flex items-center justify-between p-3 bg-sage/5 rounded-lg border border-sage/20">
+                            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                              <IconComponent className="h-5 w-5 text-sage flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-charcoal truncate">
+                                  {file.fileName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {(file.fileSize / 1024 / 1024).toFixed(1)} MB
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveFile(file.id, file.storagePath)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

@@ -131,6 +131,42 @@ export type Database = {
           },
         ]
       }
+      content_generation_media: {
+        Row: {
+          content_generation_id: string
+          created_at: string
+          id: string
+          media_file_id: string
+        }
+        Insert: {
+          content_generation_id: string
+          created_at?: string
+          id?: string
+          media_file_id: string
+        }
+        Update: {
+          content_generation_id?: string
+          created_at?: string
+          id?: string
+          media_file_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_generation_media_content_generation_id_fkey"
+            columns: ["content_generation_id"]
+            isOneToOne: false
+            referencedRelation: "content_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_generation_media_media_file_id_fkey"
+            columns: ["media_file_id"]
+            isOneToOne: false
+            referencedRelation: "media_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_generations: {
         Row: {
           audience: string | null
@@ -200,6 +236,50 @@ export type Database = {
           },
           {
             foreignKeyName: "content_generations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          mime_type: string
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_files_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
