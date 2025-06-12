@@ -10,8 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, ArrowLeft } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const CreateContent = () => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     topic: "",
     description: "",
@@ -105,23 +108,35 @@ const CreateContent = () => {
 
       const { content } = await response.json();
 
-      // Create drafts from generated content
-      const newDrafts = content.map((item: any, index: number) => ({
-        id: `${Date.now()}-${index}`,
-        topic: formData.topic,
-        platform: item.platform,
-        content: item.content,
-        hashtags: item.hashtags,
-        status: "pending" as const,
-        createdAt: new Date().toISOString(),
-      }));
+      // Save content to database
+      for (const item of content) {
+        // Create social media account if needed
+        const { data: account } = await supabase
+          .from('social_media_accounts')
+          .upsert({
+            user_id: user.id,
+            platform: item.platform.toLowerCase(),
+            account_name: `${item.platform} Account`
+          })
+          .select('id')
+          .single();
 
-      // Clear any existing localStorage data
-      localStorage.removeItem('contentDrafts');
+        // Save content generation
+        await supabase
+          .from('content_generations')
+          .insert({
+            user_id: user.id,
+            social_media_account_id: account.id,
+            topic: formData.topic,
+            generated_content: item.content,
+            status: 'generated',
+            metadata: { hashtags: item.hashtags }
+          });
+      }
 
       toast({
         title: "Content Generated",
-        description: `${newDrafts.length} content draft(s) created and sent to approval queue!`,
+        description: `${content.length} content piece(s) created successfully!`,
       });
       
       // Reset form
