@@ -238,11 +238,9 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['html', 'markdown', 'screenshot'],
+        formats: ['html', 'markdown'],
         includeTags: ['title', 'h1', 'h2', 'style', 'link', 'img'],
-        excludeTags: ['script', 'noscript'],
-        screenshot: true,
-        screenshotMode: 'desktop'
+        excludeTags: ['script', 'noscript']
       })
     });
 
