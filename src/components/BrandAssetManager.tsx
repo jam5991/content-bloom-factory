@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Palette, Type, Trash2, Edit, Plus, Image } from 'lucide-react';
+import { Upload, Palette, Type, Trash2, Edit, Plus, Image, Globe, Loader2 } from 'lucide-react';
 import { useBrandAssets, type BrandAsset, type CreateBrandAssetData } from '@/hooks/useBrandAssets';
 import { BrandTemplateCustomizer } from './BrandTemplateCustomizer';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const FONT_OPTIONS = [
   'Arial',
@@ -189,11 +191,15 @@ const BrandAssetForm = ({ asset, onSave, onCancel }: BrandAssetFormProps) => {
 export const BrandAssetManager = () => {
   const { brandAssets, loading, createBrandAsset, updateBrandAsset, deleteBrandAsset } = useBrandAssets();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedAsset, setSelectedAsset] = useState<BrandAsset | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [customizerAsset, setCustomizerAsset] = useState<BrandAsset | null>(null);
+  const [showUrlDialog, setShowUrlDialog] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleCreate = async (data: CreateBrandAssetData) => {
     const success = await createBrandAsset(data);
@@ -232,6 +238,53 @@ export const BrandAssetManager = () => {
     setShowCustomizer(false);
   };
 
+  const handleGenerateFromWebsite = async () => {
+    if (!websiteUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a website URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      const { data, error } = await supabase.functions.invoke('generate-brand-from-website', {
+        body: {
+          url: websiteUrl,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        const brandInfo = data.brandInfo;
+        const success = await createBrandAsset(brandInfo);
+        if (success) {
+          setShowUrlDialog(false);
+          setWebsiteUrl('');
+          toast({
+            title: "Success",
+            description: `Brand asset "${brandInfo.name}" generated from website!`
+          });
+        }
+      } else {
+        throw new Error(data.error || 'Failed to generate brand from website');
+      }
+    } catch (error) {
+      console.error('Error generating brand from website:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate brand from website. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading brand assets...</div>;
   }
@@ -264,13 +317,14 @@ export const BrandAssetManager = () => {
           </p>
         </div>
         
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Brand Asset
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Brand Asset
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create New Brand Asset</DialogTitle>
@@ -284,6 +338,57 @@ export const BrandAssetManager = () => {
             />
           </DialogContent>
         </Dialog>
+
+        <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Globe className="w-4 h-4 mr-2" />
+              Generate from Website
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Generate Brand Asset from Website</DialogTitle>
+              <DialogDescription>
+                Enter a website URL to automatically extract brand colors, fonts, logo, and name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="website-url">Website URL</Label>
+                <Input
+                  id="website-url"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  type="url"
+                />
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  onClick={handleGenerateFromWebsite} 
+                  disabled={isGenerating || !websiteUrl.trim()}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4 mr-2" />
+                      Generate Brand Asset
+                    </>
+                  )}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowUrlDialog(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        </div>
       </div>
 
       {brandAssets.length === 0 ? (
