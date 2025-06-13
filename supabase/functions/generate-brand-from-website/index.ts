@@ -141,7 +141,7 @@ serve(async (req) => {
     console.log(`Scraping website: ${url}`);
 
     // Scrape the website using Firecrawl
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
+    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlApiKey}`,
@@ -149,29 +149,33 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        pageOptions: {
-          includeHtml: true,
-          screenshot: false
-        },
-        extractorOptions: {
-          mode: 'llm-extraction-from-raw-html',
-          extractionPrompt: 'Extract the main brand name, primary colors, and logo information from this website.'
-        }
+        formats: ['html', 'markdown'],
+        includeTags: ['title', 'h1', 'h2', 'style', 'link', 'img'],
+        excludeTags: ['script', 'noscript']
       })
     });
 
+    console.log(`Firecrawl API response status: ${scrapeResponse.status}`);
+
     if (!scrapeResponse.ok) {
-      throw new Error(`Firecrawl API error: ${scrapeResponse.status}`);
+      const errorText = await scrapeResponse.text();
+      console.error(`Firecrawl API error: ${scrapeResponse.status} - ${errorText}`);
+      throw new Error(`Firecrawl API error: ${scrapeResponse.status} - ${errorText}`);
     }
 
     const scrapeData = await scrapeResponse.json();
+    console.log('Scrape data received:', JSON.stringify(scrapeData, null, 2));
     
     if (!scrapeData.success) {
+      console.error('Scraping failed:', scrapeData);
       throw new Error('Failed to scrape website');
     }
 
-    const html = scrapeData.data.html || '';
-    const markdown = scrapeData.data.markdown || '';
+    const html = scrapeData.data?.html || '';
+    const markdown = scrapeData.data?.markdown || '';
+    
+    console.log('HTML length:', html.length);
+    console.log('Markdown length:', markdown.length);
     
     // Extract brand information
     const brandName = extractBrandName(html);
@@ -218,6 +222,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error generating brand from website:', error);
+    console.error('Full error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return new Response(
       JSON.stringify({ 
         success: false, 
