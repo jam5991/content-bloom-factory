@@ -94,8 +94,8 @@ const Dashboard = () => {
     { icon: Home, label: "Dashboard", href: "/dashboard", active: true },
     { icon: Plus, label: "Create", href: "/create", active: false },
     { icon: FileText, label: "Content", href: "/approval-queue", active: false },
+    { icon: Settings, label: "Brand Assets", href: "/brand-assets", active: false },
     { icon: BarChart3, label: "Analytics", href: "#", active: false },
-    { icon: Settings, label: "Settings", href: "#", active: false },
   ];
 
   return (
