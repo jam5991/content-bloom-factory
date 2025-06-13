@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import CreateContent from "./pages/CreateContent";
 import ApprovalQueue from "./pages/ApprovalQueue";
 import BrandAssets from "./pages/BrandAssets";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create" element={<CreateContent />} />
             <Route path="/brand-assets" element={<BrandAssets />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/approval-queue" element={<ApprovalQueue />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

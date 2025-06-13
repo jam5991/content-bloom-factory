@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@/components/ui/badge';
 import { Upload, Palette, Type, Trash2, Edit, Plus, Image } from 'lucide-react';
 import { useBrandAssets, type BrandAsset, type CreateBrandAssetData } from '@/hooks/useBrandAssets';
+import { BrandTemplateCustomizer } from './BrandTemplateCustomizer';
+import { useToast } from '@/hooks/use-toast';
 
 const FONT_OPTIONS = [
   'Arial',
@@ -186,9 +188,12 @@ const BrandAssetForm = ({ asset, onSave, onCancel }: BrandAssetFormProps) => {
 
 export const BrandAssetManager = () => {
   const { brandAssets, loading, createBrandAsset, updateBrandAsset, deleteBrandAsset } = useBrandAssets();
+  const { toast } = useToast();
   const [selectedAsset, setSelectedAsset] = useState<BrandAsset | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
+  const [customizerAsset, setCustomizerAsset] = useState<BrandAsset | null>(null);
 
   const handleCreate = async (data: CreateBrandAssetData) => {
     const success = await createBrandAsset(data);
@@ -212,8 +217,41 @@ export const BrandAssetManager = () => {
     }
   };
 
+  const handleCustomizeTemplate = (asset: BrandAsset) => {
+    setCustomizerAsset(asset);
+    setShowCustomizer(true);
+  };
+
+  const handleSaveCustomization = async (customization: any) => {
+    // Here you would save the customization to the database
+    // For now, we'll just show a success message
+    toast({
+      title: "Template Saved",
+      description: "Your brand template customization has been saved.",
+    });
+    setShowCustomizer(false);
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading brand assets...</div>;
+  }
+
+  if (showCustomizer && customizerAsset) {
+    return (
+      <div className="space-y-6">
+        <Button 
+          variant="outline" 
+          onClick={() => setShowCustomizer(false)}
+          className="mb-4"
+        >
+          ← Back to Brand Assets
+        </Button>
+        <BrandTemplateCustomizer
+          brandAsset={customizerAsset}
+          onSave={handleSaveCustomization}
+        />
+      </div>
+    );
   }
 
   return (
@@ -284,6 +322,14 @@ export const BrandAssetManager = () => {
                     </CardDescription>
                   </div>
                   <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleCustomizeTemplate(asset)}
+                      title="Customize Template"
+                    >
+                      <Palette className="w-4 h-4" />
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"

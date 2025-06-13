@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
 import { useBrandAssets } from "@/hooks/useBrandAssets";
+import { ContentPreview } from "@/components/ContentPreview";
 
 const CreateContent = () => {
   const { user } = useAuth();
@@ -30,6 +31,8 @@ const CreateContent = () => {
   });
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<any>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const { uploadFiles, deleteFile, uploading, uploadProgress } = useFileUpload();
 
@@ -223,6 +226,10 @@ const CreateContent = () => {
         }
       }
 
+      // Store generated content for preview
+      setGeneratedContent({ content, brandedImages });
+      setShowPreview(true);
+
       const successMessage = brandedImages ? 
         `${content.length} content piece(s) and ${brandedImages.length} branded image(s) created successfully!` :
         `${content.length} content piece(s) created successfully!`;
@@ -244,6 +251,8 @@ const CreateContent = () => {
         generateImages: false,
       });
       setUploadedFiles([]);
+      
+      // Don't reset generated content immediately to keep preview available
     } catch (error) {
       console.error("Error generating content:", error);
       toast({
@@ -254,6 +263,11 @@ const CreateContent = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleClosePreview = () => {
+    setShowPreview(false);
+    setGeneratedContent(null);
   };
 
   return (
@@ -590,6 +604,15 @@ const CreateContent = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Content Preview Modal */}
+      {showPreview && generatedContent && (
+        <ContentPreview
+          content={generatedContent.content}
+          brandedImages={generatedContent.brandedImages}
+          onClose={handleClosePreview}
+        />
+      )}
     </div>
   );
 };
