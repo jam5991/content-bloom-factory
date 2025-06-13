@@ -282,73 +282,37 @@ serve(async (req) => {
     
     let extractedBrand: ExtractedBrandInfo;
     
-    // Try GPT Vision first if screenshot is available
-    if (screenshotUrl) {
-      try {
-        console.log('Using GPT Vision for brand extraction');
-        extractedBrand = await extractBrandInfoWithVision(screenshotUrl);
-      } catch (visionError) {
-        console.error('GPT Vision extraction failed, falling back to HTML parsing:', visionError);
-        
-        // Fallback to HTML extraction
-        const brandName = extractBrandName(html);
-        const logoUrl = extractLogoUrl(html, url);
-        
-        let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
-        let fontFamily = 'Arial';
-        
-        try {
-          const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-          const cssContent = styleMatches.join('\n');
-          
-          if (cssContent) {
-            colors = await extractColorsFromCSS(cssContent);
-            fontFamily = extractFontsFromCSS(cssContent);
-          }
-        } catch (error) {
-          console.log('Could not extract advanced styling, using defaults');
-        }
-
-        extractedBrand = {
-          name: brandName,
-          primary_color: colors.primary,
-          secondary_color: colors.secondary,
-          accent_color: colors.accent,
-          font_family: fontFamily,
-          logo_url: logoUrl
-        };
+    // Temporarily disable Vision API to fix core functionality
+    // TODO: Re-enable and debug Vision API later
+    console.log('Using HTML parsing (Vision API temporarily disabled)');
+    
+    // Use HTML extraction
+    const brandName = extractBrandName(html);
+    const logoUrl = extractLogoUrl(html, url);
+    
+    let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
+    let fontFamily = 'Arial';
+    
+    try {
+      const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+      const cssContent = styleMatches.join('\n');
+      
+      if (cssContent) {
+        colors = await extractColorsFromCSS(cssContent);
+        fontFamily = extractFontsFromCSS(cssContent);
       }
-    } else {
-      console.log('No screenshot available, using HTML parsing fallback');
-      
-      // Fallback to HTML extraction
-      const brandName = extractBrandName(html);
-      const logoUrl = extractLogoUrl(html, url);
-      
-      let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
-      let fontFamily = 'Arial';
-      
-      try {
-        const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-        const cssContent = styleMatches.join('\n');
-        
-        if (cssContent) {
-          colors = await extractColorsFromCSS(cssContent);
-          fontFamily = extractFontsFromCSS(cssContent);
-        }
-      } catch (error) {
-        console.log('Could not extract advanced styling, using defaults');
-      }
-
-      extractedBrand = {
-        name: brandName,
-        primary_color: colors.primary,
-        secondary_color: colors.secondary,
-        accent_color: colors.accent,
-        font_family: fontFamily,
-        logo_url: logoUrl
-      };
+    } catch (error) {
+      console.log('Could not extract advanced styling, using defaults');
     }
+
+    extractedBrand = {
+      name: brandName,
+      primary_color: colors.primary,
+      secondary_color: colors.secondary,
+      accent_color: colors.accent,
+      font_family: fontFamily,
+      logo_url: logoUrl
+    };
 
     console.log('Extracted brand info:', extractedBrand);
 
