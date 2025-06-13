@@ -28,6 +28,8 @@ interface ContentRequest {
   hashtags: string;
   userId?: string;
   mediaFiles?: MediaFile[];
+  brandAssetId?: string;
+  generateImages?: boolean;
 }
 
 serve(async (req) => {
@@ -37,7 +39,7 @@ serve(async (req) => {
 
   try {
     const requestData: ContentRequest = await req.json();
-    const { topic, description, tone, audience, platforms, hashtags, userId, mediaFiles = [] } = requestData;
+    const { topic, description, tone, audience, platforms, hashtags, userId, mediaFiles = [], brandAssetId, generateImages = false } = requestData;
 
     const generatedContent = [];
     
@@ -133,8 +135,40 @@ Generate only the post content, no additional explanation.`;
       });
     }
 
+    // Generate branded images if requested
+    let brandedImages = null;
+    if (generateImages && userId) {
+      try {
+        const imageResponse = await fetch(`${supabaseUrl}/functions/v1/generate-branded-content`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic,
+            description,
+            platforms,
+            userId,
+            brandAssetId
+          }),
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          brandedImages = imageData.brandedContent;
+        }
+      } catch (error) {
+        console.error('Error generating branded images:', error);
+        // Continue without images if generation fails
+      }
+    }
+
     return new Response(
-      JSON.stringify({ content: generatedContent }),
+      JSON.stringify({ 
+        content: generatedContent,
+        brandedImages: brandedImages
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 

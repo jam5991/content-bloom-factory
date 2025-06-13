@@ -41,26 +41,26 @@ const PLATFORM_TEMPLATES: Record<string, PlatformTemplate> = {
   instagram: {
     width: 1080,
     height: 1080,
-    textArea: { x: 80, y: 200, width: 920, height: 600 },
-    logoArea: { x: 40, y: 40, maxWidth: 200, maxHeight: 100 }
+    textArea: { x: 80, y: 300, width: 920, height: 480 },
+    logoArea: { x: 60, y: 60, maxWidth: 180, maxHeight: 80 }
   },
   facebook: {
     width: 1200,
     height: 630,
-    textArea: { x: 100, y: 150, width: 1000, height: 330 },
-    logoArea: { x: 50, y: 50, maxWidth: 250, maxHeight: 80 }
+    textArea: { x: 100, y: 180, width: 1000, height: 270 },
+    logoArea: { x: 60, y: 60, maxWidth: 200, maxHeight: 70 }
   },
   linkedin: {
     width: 1200,
     height: 627,
-    textArea: { x: 100, y: 150, width: 1000, height: 327 },
-    logoArea: { x: 50, y: 50, maxWidth: 250, maxHeight: 80 }
+    textArea: { x: 100, y: 180, width: 1000, height: 267 },
+    logoArea: { x: 60, y: 60, maxWidth: 200, maxHeight: 70 }
   },
   twitter: {
     width: 1200,
     height: 675,
-    textArea: { x: 100, y: 150, width: 1000, height: 375 },
-    logoArea: { x: 50, y: 50, maxWidth: 250, maxHeight: 80 }
+    textArea: { x: 100, y: 200, width: 1000, height: 275 },
+    logoArea: { x: 60, y: 60, maxWidth: 180, maxHeight: 70 }
   }
 };
 
@@ -88,6 +88,41 @@ async function generateBaseImage(prompt: string): Promise<string> {
   return data.data[0].b64_json;
 }
 
+function getOptimalTextLayout(text: string, template: PlatformTemplate, platform: string) {
+  const wordCount = text.split(' ').length;
+  const charCount = text.length;
+  
+  // Intelligent font sizing based on content length and platform
+  let fontSize = 42;
+  let lineHeight = 1.4;
+  
+  if (platform === 'twitter') {
+    fontSize = Math.max(28, Math.min(36, 500 / charCount * 8));
+  } else if (platform === 'instagram') {
+    fontSize = Math.max(32, Math.min(48, 800 / charCount * 10));
+  } else {
+    fontSize = Math.max(28, Math.min(42, 600 / charCount * 9));
+  }
+  
+  // Adjust line height for readability
+  if (fontSize < 32) lineHeight = 1.5;
+  if (fontSize > 40) lineHeight = 1.3;
+  
+  // Calculate optimal text area based on content
+  const padding = template.textArea.width * 0.08;
+  const availableWidth = template.textArea.width - (padding * 2);
+  const availableHeight = template.textArea.height - (padding * 2);
+  
+  return {
+    fontSize,
+    lineHeight,
+    padding,
+    availableWidth,
+    availableHeight,
+    textAlign: wordCount < 6 ? 'center' : 'left'
+  };
+}
+
 function createBrandedImageSVG(
   baseImageB64: string,
   text: string,
@@ -95,15 +130,34 @@ function createBrandedImageSVG(
   platform: string
 ): string {
   const template = PLATFORM_TEMPLATES[platform] || PLATFORM_TEMPLATES.instagram;
+  const layout = getOptimalTextLayout(text, template, platform);
   
-  // Create SVG with branded overlay
+  // Enhanced gradient for better visual appeal
+  const gradientStops = `
+    <stop offset="0%" style="stop-color:${brandAsset.primary_color};stop-opacity:0.15" />
+    <stop offset="50%" style="stop-color:${brandAsset.accent_color};stop-opacity:0.08" />
+    <stop offset="100%" style="stop-color:${brandAsset.secondary_color};stop-opacity:0.12" />
+  `;
+  
+  // Smart logo positioning based on platform
+  const logoPosition = platform === 'twitter' ? 
+    { x: template.width - template.logoArea.maxWidth - 40, y: 40 } :
+    { x: template.logoArea.x, y: template.logoArea.y };
+  
+  // Create SVG with enhanced branding
   const svg = `
     <svg width="${template.width}" height="${template.height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${brandAsset.primary_color};stop-opacity:0.1" />
-          <stop offset="100%" style="stop-color:${brandAsset.accent_color};stop-opacity:0.1" />
+          ${gradientStops}
         </linearGradient>
+        <linearGradient id="textBg" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:${brandAsset.secondary_color};stop-opacity:0.95" />
+          <stop offset="100%" style="stop-color:${brandAsset.secondary_color};stop-opacity:0.85" />
+        </linearGradient>
+        <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+        </filter>
       </defs>
       
       <!-- Base AI-generated image -->
@@ -117,61 +171,95 @@ function createBrandedImageSVG(
       <!-- Brand overlay -->
       <rect width="100%" height="100%" fill="url(#brandGradient)" />
       
-      <!-- Text area with brand colors -->
+      <!-- Enhanced text background with rounded corners and shadow -->
       <rect 
         x="${template.textArea.x}" 
         y="${template.textArea.y}" 
         width="${template.textArea.width}" 
         height="${template.textArea.height}" 
-        fill="${brandAsset.secondary_color}" 
-        fill-opacity="0.9" 
+        fill="url(#textBg)" 
         rx="20" 
+        ry="20"
+        filter="url(#textShadow)"
       />
       
-      <!-- Main text -->
+      <!-- Border accent -->
+      <rect 
+        x="${template.textArea.x}" 
+        y="${template.textArea.y}" 
+        width="${template.textArea.width}" 
+        height="${template.textArea.height}" 
+        fill="none" 
+        stroke="${brandAsset.accent_color}" 
+        stroke-width="2" 
+        rx="20" 
+        ry="20"
+        opacity="0.6"
+      />
+      
+      <!-- Main text with enhanced styling -->
       <foreignObject 
-        x="${template.textArea.x + 40}" 
-        y="${template.textArea.y + 40}" 
-        width="${template.textArea.width - 80}" 
-        height="${template.textArea.height - 80}"
+        x="${template.textArea.x + layout.padding}" 
+        y="${template.textArea.y + layout.padding}" 
+        width="${layout.availableWidth}" 
+        height="${layout.availableHeight}"
       >
         <div xmlns="http://www.w3.org/1999/xhtml" style="
           font-family: ${brandAsset.font_family}, Arial, sans-serif;
-          font-size: ${platform === 'twitter' ? '32px' : '42px'};
+          font-size: ${layout.fontSize}px;
           font-weight: bold;
           color: ${brandAsset.primary_color};
-          text-align: center;
+          text-align: ${layout.textAlign};
           display: flex;
           align-items: center;
           justify-content: center;
           height: 100%;
-          line-height: 1.4;
+          line-height: ${layout.lineHeight};
           word-wrap: break-word;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+          padding: 10px;
         ">
           ${text}
         </div>
       </foreignObject>
       
       ${brandAsset.logo_url ? `
-      <!-- Logo -->
+      <!-- Enhanced logo with background circle -->
+      <circle 
+        cx="${logoPosition.x + template.logoArea.maxWidth/2}" 
+        cy="${logoPosition.y + template.logoArea.maxHeight/2}" 
+        r="${Math.min(template.logoArea.maxWidth, template.logoArea.maxHeight)/2 + 10}" 
+        fill="${brandAsset.secondary_color}" 
+        opacity="0.9"
+        filter="url(#textShadow)"
+      />
       <image 
         href="${brandAsset.logo_url}" 
-        x="${template.logoArea.x}" 
-        y="${template.logoArea.y}" 
+        x="${logoPosition.x}" 
+        y="${logoPosition.y}" 
         width="${template.logoArea.maxWidth}" 
         height="${template.logoArea.maxHeight}"
         preserveAspectRatio="xMidYMid meet"
       />
       ` : ''}
       
-      <!-- Brand accent line -->
+      <!-- Platform-specific accent elements -->
       <rect 
         x="0" 
-        y="${template.height - 10}" 
+        y="${template.height - 8}" 
         width="100%" 
-        height="10" 
+        height="8" 
         fill="${brandAsset.accent_color}" 
       />
+      ${platform === 'instagram' ? `
+      <rect 
+        x="0" 
+        y="0" 
+        width="8" 
+        height="100%" 
+        fill="${brandAsset.accent_color}" 
+      />
+      ` : ''}
     </svg>
   `;
   

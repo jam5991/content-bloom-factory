@@ -9,13 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, ArrowLeft, X, FileImage, FileVideo, File } from "lucide-react";
+import { Upload, ArrowLeft, X, FileImage, FileVideo, File, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useFileUpload, UploadedFile } from "@/hooks/useFileUpload";
+import { useBrandAssets } from "@/hooks/useBrandAssets";
 
 const CreateContent = () => {
   const { user } = useAuth();
+  const { brandAssets } = useBrandAssets();
   const [formData, setFormData] = useState({
     topic: "",
     description: "",
@@ -23,6 +25,8 @@ const CreateContent = () => {
     audience: "",
     platforms: [] as string[],
     hashtags: "",
+    brandAssetId: "",
+    generateImages: false,
   });
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -118,6 +122,8 @@ const CreateContent = () => {
           platforms: formData.platforms,
           hashtags: formData.hashtags,
           userId: user.id,
+          brandAssetId: formData.brandAssetId,
+          generateImages: formData.generateImages,
           mediaFiles: uploadedFiles.map(file => ({
             id: file.id,
             fileName: file.fileName,
@@ -132,7 +138,7 @@ const CreateContent = () => {
         throw new Error(`Failed to generate content: ${response.status}`);
       }
 
-      const { content } = await response.json();
+      const { content, brandedImages } = await response.json();
 
       // Ensure user profile exists
       if (!user) {
@@ -217,9 +223,13 @@ const CreateContent = () => {
         }
       }
 
+      const successMessage = brandedImages ? 
+        `${content.length} content piece(s) and ${brandedImages.length} branded image(s) created successfully!` :
+        `${content.length} content piece(s) created successfully!`;
+        
       toast({
         title: "Content Generated",
-        description: `${content.length} content piece(s) created successfully!`,
+        description: successMessage,
       });
       
       // Reset form
@@ -230,6 +240,8 @@ const CreateContent = () => {
         audience: "",
         platforms: [],
         hashtags: "",
+        brandAssetId: "",
+        generateImages: false,
       });
       setUploadedFiles([]);
     } catch (error) {
@@ -380,6 +392,84 @@ const CreateContent = () => {
                   placeholder="#marketing #business #socialmedia"
                   className="border-sage/30 focus:border-primary bg-warm-white"
                 />
+              </div>
+
+              {/* Brand Asset Selection */}
+              <div className="space-y-4">
+                <Label className="text-charcoal font-medium">
+                  Brand Assets & Visual Content
+                </Label>
+                
+                {brandAssets.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Brand Asset (optional)</Label>
+                      <Select 
+                        value={formData.brandAssetId} 
+                        onValueChange={(value) => handleInputChange("brandAssetId", value)}
+                      >
+                        <SelectTrigger className="border-sage/30 focus:border-primary bg-warm-white">
+                          <SelectValue placeholder="Select a brand asset" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No brand asset</SelectItem>
+                          {brandAssets.map((asset) => (
+                            <SelectItem key={asset.id} value={asset.id}>
+                              <div className="flex items-center gap-2">
+                                {asset.logo_url && (
+                                  <img 
+                                    src={asset.logo_url} 
+                                    alt={asset.name} 
+                                    className="w-4 h-4 object-contain"
+                                  />
+                                )}
+                                <span>{asset.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="generateImages"
+                        checked={formData.generateImages}
+                        onCheckedChange={(checked) => handleInputChange("generateImages", !!checked)}
+                      />
+                      <Label htmlFor="generateImages" className="text-sm font-medium flex items-center gap-2">
+                        <Palette className="w-4 h-4" />
+                        Generate branded images for social media
+                      </Label>
+                    </div>
+                    
+                    {formData.generateImages && (
+                      <div className="p-3 bg-sage/5 rounded-lg border border-sage/20">
+                        <p className="text-xs text-muted-foreground">
+                          AI will create platform-optimized images with your brand colors, fonts, and logo overlay.
+                          {formData.brandAssetId ? " Using your selected brand asset." : " Using default styling."}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {brandAssets.length === 0 && (
+                  <div className="p-4 bg-muted/20 rounded-lg border border-dashed border-muted-foreground/20">
+                    <div className="flex items-center gap-3">
+                      <Palette className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">No brand assets found</p>
+                        <p className="text-xs text-muted-foreground">
+                          <Link to="/brand-assets" className="underline hover:text-primary">
+                            Create a brand asset
+                          </Link>
+                          {" "}to generate branded visual content.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* File Upload */}
