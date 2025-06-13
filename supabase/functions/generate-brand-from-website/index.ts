@@ -124,8 +124,11 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
 async function extractBrandInfoWithVision(screenshotUrl: string): Promise<ExtractedBrandInfo> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
+    console.error('OpenAI API key not configured');
     throw new Error('OpenAI API key not configured');
   }
+
+  console.log('Screenshot URL for Vision API:', screenshotUrl);
 
   const prompt = `Analyze this website screenshot and extract the following brand information in JSON format:
 
@@ -261,11 +264,21 @@ serve(async (req) => {
 
     const html = scrapeData.data?.html || '';
     const markdown = scrapeData.data?.markdown || '';
-    const screenshotUrl = scrapeData.data?.screenshot?.url || scrapeData.data?.screenshot;
+    
+    // Handle different screenshot URL formats from Firecrawl
+    let screenshotUrl = null;
+    if (scrapeData.data?.screenshot) {
+      if (typeof scrapeData.data.screenshot === 'string') {
+        screenshotUrl = scrapeData.data.screenshot;
+      } else if (scrapeData.data.screenshot.url) {
+        screenshotUrl = scrapeData.data.screenshot.url;
+      }
+    }
     
     console.log('HTML length:', html.length);
     console.log('Markdown length:', markdown.length);
     console.log('Screenshot URL:', screenshotUrl);
+    console.log('Screenshot data structure:', JSON.stringify(scrapeData.data?.screenshot, null, 2));
     
     let extractedBrand: ExtractedBrandInfo;
     
