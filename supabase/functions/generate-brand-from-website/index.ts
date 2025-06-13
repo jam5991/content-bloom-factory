@@ -121,6 +121,92 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
   return undefined;
 }
 
+async function extractBrandInfoWithVision(screenshotUrl: string): Promise<ExtractedBrandInfo> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const prompt = `Analyze this website screenshot and extract the following brand information in JSON format:
+
+{
+  "name": "The main brand/company name (clean, without taglines)",
+  "primary_color": "The dominant brand color as hex code",
+  "secondary_color": "A secondary brand color as hex code", 
+  "accent_color": "An accent color used in the design as hex code",
+  "font_family": "The primary font family used (e.g., 'Roboto', 'Arial', 'Open Sans')",
+  "logo_url": "URL of the main logo if clearly visible, or null"
+}
+
+Focus on:
+- Brand colors from headers, buttons, logos, and key UI elements
+- Typography choices for headings and main text
+- Clean brand name without marketing copy
+- Only return valid hex color codes (e.g., #FF5733)
+
+Return only the JSON object, no other text.`;
+
+  console.log('Calling OpenAI Vision API for brand extraction');
+  
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: screenshotUrl,
+                detail: 'high'
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 500,
+      temperature: 0.1
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`OpenAI API error: ${response.status} - ${errorText}`);
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  
+  console.log('OpenAI Vision response:', content);
+  
+  try {
+    const extractedInfo = JSON.parse(content);
+    return {
+      name: extractedInfo.name || 'Brand Name',
+      primary_color: extractedInfo.primary_color || '#000000',
+      secondary_color: extractedInfo.secondary_color || '#ffffff',
+      accent_color: extractedInfo.accent_color || '#0066cc',
+      font_family: extractedInfo.font_family || 'Arial',
+      logo_url: extractedInfo.logo_url || undefined
+    };
+  } catch (parseError) {
+    console.error('Failed to parse OpenAI response as JSON:', parseError);
+    console.error('Raw response:', content);
+    throw new Error('Failed to parse brand information from AI response');
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -149,9 +235,11 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['html', 'markdown'],
+        formats: ['html', 'markdown', 'screenshot'],
         includeTags: ['title', 'h1', 'h2', 'style', 'link', 'img'],
-        excludeTags: ['script', 'noscript']
+        excludeTags: ['script', 'noscript'],
+        screenshot: true,
+        screenshotMode: 'desktop'
       })
     });
 
@@ -173,39 +261,81 @@ serve(async (req) => {
 
     const html = scrapeData.data?.html || '';
     const markdown = scrapeData.data?.markdown || '';
+    const screenshotUrl = scrapeData.data?.screenshot?.url || scrapeData.data?.screenshot;
     
     console.log('HTML length:', html.length);
     console.log('Markdown length:', markdown.length);
+    console.log('Screenshot URL:', screenshotUrl);
     
-    // Extract brand information
-    const brandName = extractBrandName(html);
-    const logoUrl = extractLogoUrl(html, url);
+    let extractedBrand: ExtractedBrandInfo;
     
-    // For CSS, we'll make another request to get the stylesheet
-    let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
-    let fontFamily = 'Arial';
-    
-    try {
-      // Try to extract inline CSS and styles
-      const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-      const cssContent = styleMatches.join('\n');
-      
-      if (cssContent) {
-        colors = await extractColorsFromCSS(cssContent);
-        fontFamily = extractFontsFromCSS(cssContent);
-      }
-    } catch (error) {
-      console.log('Could not extract advanced styling, using defaults');
-    }
+    // Try GPT Vision first if screenshot is available
+    if (screenshotUrl) {
+      try {
+        console.log('Using GPT Vision for brand extraction');
+        extractedBrand = await extractBrandInfoWithVision(screenshotUrl);
+      } catch (visionError) {
+        console.error('GPT Vision extraction failed, falling back to HTML parsing:', visionError);
+        
+        // Fallback to HTML extraction
+        const brandName = extractBrandName(html);
+        const logoUrl = extractLogoUrl(html, url);
+        
+        let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
+        let fontFamily = 'Arial';
+        
+        try {
+          const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+          const cssContent = styleMatches.join('\n');
+          
+          if (cssContent) {
+            colors = await extractColorsFromCSS(cssContent);
+            fontFamily = extractFontsFromCSS(cssContent);
+          }
+        } catch (error) {
+          console.log('Could not extract advanced styling, using defaults');
+        }
 
-    const extractedBrand: ExtractedBrandInfo = {
-      name: brandName,
-      primary_color: colors.primary,
-      secondary_color: colors.secondary,
-      accent_color: colors.accent,
-      font_family: fontFamily,
-      logo_url: logoUrl
-    };
+        extractedBrand = {
+          name: brandName,
+          primary_color: colors.primary,
+          secondary_color: colors.secondary,
+          accent_color: colors.accent,
+          font_family: fontFamily,
+          logo_url: logoUrl
+        };
+      }
+    } else {
+      console.log('No screenshot available, using HTML parsing fallback');
+      
+      // Fallback to HTML extraction
+      const brandName = extractBrandName(html);
+      const logoUrl = extractLogoUrl(html, url);
+      
+      let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
+      let fontFamily = 'Arial';
+      
+      try {
+        const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+        const cssContent = styleMatches.join('\n');
+        
+        if (cssContent) {
+          colors = await extractColorsFromCSS(cssContent);
+          fontFamily = extractFontsFromCSS(cssContent);
+        }
+      } catch (error) {
+        console.log('Could not extract advanced styling, using defaults');
+      }
+
+      extractedBrand = {
+        name: brandName,
+        primary_color: colors.primary,
+        secondary_color: colors.secondary,
+        accent_color: colors.accent,
+        font_family: fontFamily,
+        logo_url: logoUrl
+      };
+    }
 
     console.log('Extracted brand info:', extractedBrand);
 
