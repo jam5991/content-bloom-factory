@@ -16,10 +16,14 @@ interface ExtractedBrandInfo {
   logo_url?: string;
 }
 
-async function extractColorsFromCSS(css: string): Promise<{ primary: string; secondary: string; accent: string }> {
-  // Extract hex colors from CSS
-  const hexColors = css.match(/#[0-9a-fA-F]{6}/g) || [];
-  const rgbColors = css.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [];
+async function extractColorsFromCSS(css: string, html: string): Promise<{ primary: string; secondary: string; accent: string }> {
+  // Extract hex colors from CSS and HTML
+  const hexColors = [...(css.match(/#[0-9a-fA-F]{6}/g) || []), ...(html.match(/#[0-9a-fA-F]{6}/g) || [])];
+  const rgbColors = [...(css.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || []), ...(html.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [])];
+  
+  // Also look for CSS custom properties and color keywords
+  const cssVariables = css.match(/--[a-zA-Z0-9-]*:\s*#[0-9a-fA-F]{6}/g) || [];
+  const variableColors = cssVariables.map(v => v.match(/#[0-9a-fA-F]{6}/)?.[0]).filter(Boolean);
   
   // Convert RGB to hex
   const convertedColors = rgbColors.map(rgb => {
@@ -33,17 +37,55 @@ async function extractColorsFromCSS(css: string): Promise<{ primary: string; sec
     return '#000000';
   });
   
-  const allColors = [...hexColors, ...convertedColors];
+  // Look for specific brand color patterns in class names and styles
+  const brandColorPatterns = [
+    /background-color:\s*(#[0-9a-fA-F]{6})/g,
+    /color:\s*(#[0-9a-fA-F]{6})/g,
+    /fill=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g
+  ];
   
-  // Filter out common colors (black, white, grays)
-  const filteredColors = allColors.filter(color => 
-    color !== '#000000' && color !== '#ffffff' && !color.match(/#[0-9a-fA-F]{2}\1\1/)
-  );
+  const patternColors: string[] = [];
+  brandColorPatterns.forEach(pattern => {
+    const matches = [...css.matchAll(pattern), ...html.matchAll(pattern)];
+    matches.forEach(match => {
+      const color = match[1]?.match(/#[0-9a-fA-F]{6}/)?.[0];
+      if (color) patternColors.push(color);
+    });
+  });
+  
+  const allColors = [...new Set([...hexColors, ...convertedColors, ...variableColors, ...patternColors])];
+  
+  // Enhanced filtering - remove common colors and very similar grays
+  const filteredColors = allColors.filter(color => {
+    const cleanColor = color.toUpperCase();
+    // Remove pure black, white, and gray variations
+    if (cleanColor === '#000000' || cleanColor === '#FFFFFF') return false;
+    // Remove grays (where all RGB components are similar)
+    const r = parseInt(cleanColor.slice(1, 3), 16);
+    const g = parseInt(cleanColor.slice(3, 5), 16);
+    const b = parseInt(cleanColor.slice(5, 7), 16);
+    const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b));
+    return maxDiff > 30; // Keep colors where RGB components differ by more than 30
+  });
+  
+  // Sort by color frequency or brightness for better primary selection
+  const colorFreq = new Map();
+  allColors.forEach(color => {
+    colorFreq.set(color, (colorFreq.get(color) || 0) + 1);
+  });
+  
+  const sortedColors = filteredColors.sort((a, b) => {
+    const freqA = colorFreq.get(a) || 0;
+    const freqB = colorFreq.get(b) || 0;
+    return freqB - freqA;
+  });
+  
+  console.log('Extracted colors:', sortedColors);
   
   return {
-    primary: filteredColors[0] || '#000000',
-    secondary: filteredColors[1] || '#ffffff',
-    accent: filteredColors[2] || '#0066cc'
+    primary: sortedColors[0] || '#e74c3c',
+    secondary: sortedColors[1] || '#ffffff',
+    accent: sortedColors[2] || '#3498db'
   };
 }
 
@@ -295,8 +337,8 @@ serve(async (req) => {
       const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
       const cssContent = styleMatches.join('\n');
       
-      if (cssContent) {
-        colors = await extractColorsFromCSS(cssContent);
+      if (cssContent || html) {
+        colors = await extractColorsFromCSS(cssContent, html);
         fontFamily = extractFontsFromCSS(cssContent);
       }
     } catch (error) {
