@@ -12,6 +12,24 @@ interface ExtractedBrandInfo {
   accent_color: string;
   font_family: string;
   logo_url?: string;
+  personality: BrandPersonality;
+  confidence_scores: ConfidenceScores;
+}
+
+interface BrandPersonality {
+  primary_trait: string;
+  secondary_traits: string[];
+  industry_context: string;
+  design_approach: string;
+}
+
+interface ConfidenceScores {
+  name: number;
+  colors: number;
+  typography: number;
+  logo: number;
+  personality: number;
+  overall: number;
 }
 
 // ============================================================================
@@ -393,7 +411,7 @@ async function extractBrandInfoWithVision(screenshotUrl: string): Promise<Extrac
 
   console.log('Screenshot URL for Vision API:', screenshotUrl);
 
-  const enhancedPrompt = `You are an expert brand analyst and visual designer with 15+ years of experience in brand identity extraction, color theory, typography, and logo analysis. Analyze this website screenshot with meticulous attention to brand elements.
+  const enhancedPrompt = `You are an expert brand analyst and visual designer with 15+ years of experience in brand identity extraction, color theory, typography, logo analysis, and brand personality assessment. Analyze this website screenshot with meticulous attention to brand elements.
 
 CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure:
 
@@ -403,7 +421,21 @@ CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure
   "secondary_color": "#RRGGBB", 
   "accent_color": "#RRGGBB",
   "font_family": "Font name",
-  "logo_url": "URL or null"
+  "logo_url": "URL or null",
+  "personality": {
+    "primary_trait": "Primary personality trait",
+    "secondary_traits": ["trait1", "trait2", "trait3"],
+    "industry_context": "Industry/sector classification",
+    "design_approach": "Overall design philosophy"
+  },
+  "confidence_scores": {
+    "name": 0.95,
+    "colors": 0.88,
+    "typography": 0.92,
+    "logo": 0.75,
+    "personality": 0.85,
+    "overall": 0.87
+  }
 }
 
 DETAILED ANALYSIS FRAMEWORK:
@@ -439,12 +471,6 @@ FONT IDENTIFICATION PRIORITIES:
    - Display: Oswald, Bebas Neue, Raleway, Nunito, Quicksand
 4. SYSTEM FONTS: Default browser fonts as last resort
 
-VISUAL FONT ANALYSIS TECHNIQUE:
-- Compare letterforms against known font characteristics
-- Analyze spacing patterns and geometric proportions
-- Look for distinctive features like rounded corners, angled cuts, or unique character designs
-- Consider font pairing patterns (display + body text combinations)
-
 🏷️ BRAND NAME EXTRACTION:
 - Prioritize: Logo text, main navigation brand name, page titles
 - Ignore: Taglines, descriptive text, marketing copy
@@ -464,35 +490,49 @@ LOGO URL EXTRACTION METHOD:
 - Identify retina/high-DPI logo variants (@2x, @3x suffixes)
 - Prioritize logos in header, navigation, or footer areas
 
-LOGO QUALITY ASSESSMENT:
-- Prefer vector formats (SVG) over raster (PNG/JPG)
-- Choose higher resolution versions when available
-- Select main logo over simplified mobile versions
-- Avoid social media icons or generic placeholders
+🎭 BRAND PERSONALITY ANALYSIS:
+PRIMARY TRAITS (choose one):
+- Modern: Clean lines, minimal design, contemporary aesthetics
+- Classic: Timeless design, traditional elements, established feel
+- Playful: Bright colors, fun typography, casual approach
+- Professional: Business-focused, serious tone, corporate aesthetic
+- Creative: Artistic elements, unique layouts, innovative design
+- Luxury: Premium materials, elegant typography, sophisticated colors
+- Approachable: Friendly design, warm colors, accessible layout
+- Bold: High contrast, strong typography, confident presentation
+- Minimalist: Simple design, lots of whitespace, focused content
 
-🎯 BRAND CONTEXT AWARENESS:
-Consider the industry/sector suggested by design:
-- Tech: Clean, minimal, blue/gray palettes, modern sans-serif
-- Finance: Conservative, blue/green, serif or refined sans-serif
-- Creative: Bold colors, unique typography, custom fonts
-- E-commerce: High contrast, action-oriented, readable fonts
-- Healthcare: Trust colors (blue/green), clean, accessible fonts
-- Fashion: Elegant typography, high contrast, premium feel
-- Food: Warm colors, approachable fonts, appetizing visuals
+SECONDARY TRAITS (select 2-3):
+- Innovative, Trustworthy, Energetic, Sophisticated, Friendly, 
+- Reliable, Dynamic, Elegant, Cutting-edge, Traditional, Warm, 
+- Authoritative, Fresh, Established, Youthful, Premium, Accessible
+
+INDUSTRY CONTEXT:
+- Technology, Finance, Healthcare, E-commerce, Creative/Design, 
+- Education, Food & Beverage, Fashion, Real Estate, Non-profit,
+- Entertainment, Professional Services, Manufacturing, Startup
+
+DESIGN APPROACH:
+- Minimalist, Maximalist, Flat Design, Material Design, Neumorphism,
+- Brutalist, Typography-focused, Image-heavy, Illustration-based,
+- Grid-based, Organic/Flowing, Geometric, Hand-crafted, Corporate
+
+🎯 CONFIDENCE SCORING GUIDELINES:
+Rate each element 0.0-1.0 based on:
+- NAME: Clarity and prominence of brand identifier (0.9+ if clear logo text, 0.5-0.8 if inferred)
+- COLORS: Distinctiveness and consistency (0.9+ if strong brand colors, 0.6-0.8 if generic)
+- TYPOGRAPHY: Font identification accuracy (0.9+ if clearly identifiable, 0.7-0.8 if estimated)
+- LOGO: Visibility and quality (0.9+ if clear logo visible, 0.3-0.6 if inferred/favicon only)
+- PERSONALITY: Design coherence for trait assessment (0.8+ if clear indicators, 0.6-0.7 if mixed)
+- OVERALL: Average confidence across all elements
 
 QUALITY STANDARDS:
 ✅ All hex codes must be exactly 6 digits: #FF5733
 ✅ Font names should be real, recognizable families with proper capitalization
 ✅ Brand name should be concise (2-4 words max)
 ✅ Logo URL must be actual image file URL, not page URL
-✅ Prefer specific font names over generic categories
-
-ENHANCED VISUAL ANALYSIS:
-- Examine logo placement, size, and visual hierarchy
-- Analyze font rendering quality and anti-aliasing
-- Consider responsive design font choices
-- Look for consistent brand application across elements
-- Identify premium vs budget design choices
+✅ Confidence scores must be realistic decimals between 0.0-1.0
+✅ Personality traits must match established brand archetypes
 
 Focus on intentional brand design choices that distinguish this company from generic websites. Prioritize elements that appear deliberately chosen for brand identity over standard web design patterns.`;
 
@@ -551,7 +591,9 @@ Focus on intentional brand design choices that distinguish this company from gen
       secondary_color: validateHexColor(extractedInfo.secondary_color, '#ffffff'),
       accent_color: validateHexColor(extractedInfo.accent_color, '#3498db'),
       font_family: validateFontFamily(extractedInfo.font_family),
-      logo_url: validateLogoUrl(extractedInfo.logo_url)
+      logo_url: validateLogoUrl(extractedInfo.logo_url),
+      personality: validatePersonality(extractedInfo.personality),
+      confidence_scores: validateConfidenceScores(extractedInfo.confidence_scores)
     };
     
     console.log('Validated brand info:', sanitizedBrandInfo);
@@ -609,6 +651,139 @@ function validateLogoUrl(url: any): string | undefined {
   return undefined;
 }
 
+function validatePersonality(personality: any): BrandPersonality {
+  const defaultPersonality: BrandPersonality = {
+    primary_trait: 'Professional',
+    secondary_traits: ['Reliable', 'Trustworthy'],
+    industry_context: 'Professional Services',
+    design_approach: 'Corporate'
+  };
+
+  if (!personality || typeof personality !== 'object') {
+    return defaultPersonality;
+  }
+
+  return {
+    primary_trait: typeof personality.primary_trait === 'string' ? personality.primary_trait : defaultPersonality.primary_trait,
+    secondary_traits: Array.isArray(personality.secondary_traits) ? personality.secondary_traits.slice(0, 3) : defaultPersonality.secondary_traits,
+    industry_context: typeof personality.industry_context === 'string' ? personality.industry_context : defaultPersonality.industry_context,
+    design_approach: typeof personality.design_approach === 'string' ? personality.design_approach : defaultPersonality.design_approach
+  };
+}
+
+function validateConfidenceScores(scores: any): ConfidenceScores {
+  const defaultScores: ConfidenceScores = {
+    name: 0.5,
+    colors: 0.5,
+    typography: 0.5,
+    logo: 0.3,
+    personality: 0.6,
+    overall: 0.5
+  };
+
+  if (!scores || typeof scores !== 'object') {
+    return defaultScores;
+  }
+
+  const validateScore = (score: any): number => {
+    if (typeof score === 'number' && score >= 0 && score <= 1) {
+      return Math.round(score * 100) / 100; // Round to 2 decimal places
+    }
+    return 0.5;
+  };
+
+  const validated = {
+    name: validateScore(scores.name),
+    colors: validateScore(scores.colors),
+    typography: validateScore(scores.typography),
+    logo: validateScore(scores.logo),
+    personality: validateScore(scores.personality),
+    overall: validateScore(scores.overall)
+  };
+
+  // Calculate overall score if not provided or invalid
+  if (scores.overall === undefined || validateScore(scores.overall) === 0.5) {
+    validated.overall = Math.round(((validated.name + validated.colors + validated.typography + validated.logo + validated.personality) / 5) * 100) / 100;
+  }
+
+  return validated;
+}
+
+function generateBasicPersonality(html: string, colors: { primary: string; secondary: string; accent: string }): BrandPersonality {
+  // Analyze HTML structure and colors to make basic personality assessment
+  const hasNavigation = html.includes('<nav') || html.includes('navigation');
+  const hasButton = html.includes('<button') || html.includes('btn');
+  const hasForm = html.includes('<form');
+  const hasVideo = html.includes('<video') || html.includes('youtube') || html.includes('vimeo');
+  const hasAnimation = html.includes('animation') || html.includes('transition');
+  
+  // Color psychology analysis
+  const primaryHsl = hexToHsl(colors.primary);
+  const isBlueish = primaryHsl.h >= 200 && primaryHsl.h <= 260;
+  const isRedish = primaryHsl.h >= 340 || primaryHsl.h <= 20;
+  const isGreenish = primaryHsl.h >= 80 && primaryHsl.h <= 160;
+  const isOrangish = primaryHsl.h >= 20 && primaryHsl.h <= 60;
+  const isHighSaturation = primaryHsl.s > 60;
+  
+  // Determine primary trait based on structure and colors
+  let primaryTrait = 'Professional';
+  let industryContext = 'Professional Services';
+  let designApproach = 'Corporate';
+  const secondaryTraits: string[] = ['Reliable', 'Trustworthy'];
+  
+  // Business/professional indicators
+  if (isBlueish && !isHighSaturation) {
+    primaryTrait = 'Professional';
+    industryContext = 'Finance';
+    secondaryTraits.push('Trustworthy');
+  }
+  // Technology indicators
+  else if (isBlueish && hasAnimation) {
+    primaryTrait = 'Modern';
+    industryContext = 'Technology';
+    designApproach = 'Minimalist';
+    secondaryTraits.splice(0, 2, 'Innovative', 'Cutting-edge');
+  }
+  // Creative indicators
+  else if (isHighSaturation && (isRedish || isOrangish)) {
+    primaryTrait = 'Creative';
+    industryContext = 'Creative/Design';
+    designApproach = 'Typography-focused';
+    secondaryTraits.splice(0, 2, 'Bold', 'Dynamic');
+  }
+  // Healthcare/wellness indicators
+  else if (isGreenish) {
+    primaryTrait = 'Approachable';
+    industryContext = 'Healthcare';
+    secondaryTraits.splice(0, 2, 'Trustworthy', 'Warm');
+  }
+  // E-commerce indicators
+  else if (hasButton && hasForm) {
+    primaryTrait = 'Professional';
+    industryContext = 'E-commerce';
+    designApproach = 'Grid-based';
+    secondaryTraits.push('Reliable');
+  }
+  
+  // Adjust based on structure
+  if (hasVideo || hasAnimation) {
+    if (!secondaryTraits.includes('Dynamic')) {
+      secondaryTraits.push('Dynamic');
+    }
+  }
+  
+  if (hasNavigation && hasForm) {
+    designApproach = 'Corporate';
+  }
+  
+  return {
+    primary_trait: primaryTrait,
+    secondary_traits: secondaryTraits.slice(0, 3),
+    industry_context: industryContext,
+    design_approach: designApproach
+  };
+}
+
 // ============================================================================
 // HTML PARSING EXTRACTION
 // ============================================================================
@@ -634,13 +809,29 @@ async function extractBrandFromHTML(html: string, url: string): Promise<Extracte
     console.log('Could not extract advanced styling, using defaults');
   }
 
+  // Generate basic personality assessment from HTML structure
+  const personalityAssessment = generateBasicPersonality(html, colors);
+  
+  // Generate confidence scores for HTML-based extraction
+  const confidenceScores: ConfidenceScores = {
+    name: brandName !== 'Brand Name' ? 0.7 : 0.3,
+    colors: colors.primary !== '#000000' ? 0.6 : 0.3,
+    typography: fontFamily !== 'Arial' ? 0.5 : 0.3,
+    logo: logoUrl ? 0.6 : 0.2,
+    personality: 0.4, // Lower confidence for HTML-based personality assessment
+    overall: 0.0 // Will be calculated
+  };
+  confidenceScores.overall = Math.round(((confidenceScores.name + confidenceScores.colors + confidenceScores.typography + confidenceScores.logo + confidenceScores.personality) / 5) * 100) / 100;
+
   return {
     name: brandName,
     primary_color: colors.primary,
     secondary_color: colors.secondary,
     accent_color: colors.accent,
     font_family: fontFamily,
-    logo_url: logoUrl
+    logo_url: logoUrl,
+    personality: personalityAssessment,
+    confidence_scores: confidenceScores
   };
 }
 
@@ -692,7 +883,21 @@ function combineExtractionResults(vision: ExtractedBrandInfo | null, html: Extra
       secondary_color: '#ffffff',
       accent_color: '#3498db',
       font_family: 'Arial',
-      logo_url: undefined
+      logo_url: undefined,
+      personality: {
+        primary_trait: 'Professional',
+        secondary_traits: ['Reliable', 'Trustworthy'],
+        industry_context: 'Professional Services',
+        design_approach: 'Corporate'
+      },
+      confidence_scores: {
+        name: 0.3,
+        colors: 0.3,
+        typography: 0.3,
+        logo: 0.2,
+        personality: 0.3,
+        overall: 0.28
+      }
     };
   }
   
@@ -710,7 +915,13 @@ function combineExtractionResults(vision: ExtractedBrandInfo | null, html: Extra
     font_family: vision!.font_family !== 'Arial' ? vision!.font_family : html!.font_family,
     
     // Prefer HTML for logo URL (more accurate URL extraction)
-    logo_url: html!.logo_url || vision!.logo_url
+    logo_url: html!.logo_url || vision!.logo_url,
+    
+    // Prefer vision for personality assessment (better visual context)
+    personality: vision!.personality || html!.personality,
+    
+    // Combine confidence scores using weighted average (vision gets higher weight)
+    confidence_scores: combineConfidenceScores(vision!.confidence_scores, html!.confidence_scores)
   };
   
   console.log('Combined extraction results:', {
@@ -758,6 +969,26 @@ function selectBestColor(visionColor: string, htmlColor: string, fallback: strin
   
   // Both are generic, prefer vision
   return visionColor || fallback;
+}
+
+function combineConfidenceScores(vision: ConfidenceScores, html: ConfidenceScores): ConfidenceScores {
+  // Weighted average with vision getting higher weight (0.7) and HTML getting lower weight (0.3)
+  const visionWeight = 0.7;
+  const htmlWeight = 0.3;
+  
+  const combined = {
+    name: Math.round((vision.name * visionWeight + html.name * htmlWeight) * 100) / 100,
+    colors: Math.round((vision.colors * visionWeight + html.colors * htmlWeight) * 100) / 100,
+    typography: Math.round((vision.typography * visionWeight + html.typography * htmlWeight) * 100) / 100,
+    logo: Math.round((vision.logo * visionWeight + html.logo * htmlWeight) * 100) / 100,
+    personality: Math.round((vision.personality * visionWeight + html.personality * htmlWeight) * 100) / 100,
+    overall: 0.0 // Will be calculated
+  };
+  
+  // Calculate overall score
+  combined.overall = Math.round(((combined.name + combined.colors + combined.typography + combined.logo + combined.personality) / 5) * 100) / 100;
+  
+  return combined;
 }
 
 // ============================================================================
