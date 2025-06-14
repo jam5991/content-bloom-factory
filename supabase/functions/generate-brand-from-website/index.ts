@@ -27,6 +27,137 @@ const corsHeaders = {
 // COLOR EXTRACTION UTILITIES
 // ============================================================================
 
+// Color harmonization utilities
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  h /= 360; s /= 100; l /= 100;
+  
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+
+  const toHex = (c: number) => {
+    const hex = Math.round(c * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function harmonizeColors(colors: string[]): { primary: string; secondary: string; accent: string } {
+  if (colors.length === 0) {
+    return { primary: '#e74c3c', secondary: '#ffffff', accent: '#3498db' };
+  }
+
+  // Convert colors to HSL for better manipulation
+  const hslColors = colors.map(color => ({ color, ...hexToHsl(color) }));
+  
+  // Find the most vibrant color as primary
+  const primary = hslColors.reduce((prev, curr) => 
+    curr.s > prev.s ? curr : prev
+  ).color;
+
+  const primaryHsl = hexToHsl(primary);
+  
+  // Generate harmonious secondary (complementary or analogous)
+  const secondaryHue = (primaryHsl.h + 180) % 360;
+  const secondary = hslToHex(
+    secondaryHue,
+    Math.max(15, primaryHsl.s * 0.3), // Reduced saturation
+    Math.min(90, primaryHsl.l + 30)   // Lighter
+  );
+
+  // Generate harmonious accent (triadic)
+  const accentHue = (primaryHsl.h + 120) % 360;
+  const accent = hslToHex(
+    accentHue,
+    Math.max(40, primaryHsl.s * 0.8), // High saturation for accent
+    Math.max(30, Math.min(70, primaryHsl.l)) // Balanced lightness
+  );
+
+  return { primary, secondary, accent };
+}
+
+function detectGradients(css: string): string[] {
+  const gradientPatterns = [
+    /linear-gradient\([^)]+\)/g,
+    /radial-gradient\([^)]+\)/g,
+    /conic-gradient\([^)]+\)/g,
+    /repeating-linear-gradient\([^)]+\)/g,
+    /repeating-radial-gradient\([^)]+\)/g
+  ];
+
+  const gradients: string[] = [];
+  gradientPatterns.forEach(pattern => {
+    const matches = css.match(pattern) || [];
+    gradients.push(...matches);
+  });
+
+  return gradients;
+}
+
+function extractColorsFromGradients(gradients: string[]): string[] {
+  const colors: string[] = [];
+  
+  gradients.forEach(gradient => {
+    // Extract hex colors from gradients
+    const hexMatches = gradient.match(/#[0-9a-fA-F]{6}/g) || [];
+    colors.push(...hexMatches);
+    
+    // Extract rgb colors from gradients
+    const rgbMatches = gradient.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [];
+    rgbMatches.forEach(rgb => {
+      const values = rgb.match(/\d+/g);
+      if (values && values.length === 3) {
+        const r = parseInt(values[0]).toString(16).padStart(2, '0');
+        const g = parseInt(values[1]).toString(16).padStart(2, '0');
+        const b = parseInt(values[2]).toString(16).padStart(2, '0');
+        colors.push(`#${r}${g}${b}`);
+      }
+    });
+  });
+
+  return colors;
+}
+
 async function extractColorsFromCSS(css: string, html: string): Promise<{ primary: string; secondary: string; accent: string }> {
   // Extract hex colors from CSS and HTML
   const hexColors = [...(css.match(/#[0-9a-fA-F]{6}/g) || []), ...(html.match(/#[0-9a-fA-F]{6}/g) || [])];
@@ -35,6 +166,12 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   // Extract CSS custom properties and color keywords
   const cssVariables = css.match(/--[a-zA-Z0-9-]*:\s*#[0-9a-fA-F]{6}/g) || [];
   const variableColors = cssVariables.map(v => v.match(/#[0-9a-fA-F]{6}/)?.[0]).filter(Boolean);
+  
+  // Detect and extract colors from gradients
+  const gradients = detectGradients(css);
+  const gradientColors = extractColorsFromGradients(gradients);
+  console.log('Detected gradients:', gradients.length);
+  console.log('Colors from gradients:', gradientColors);
   
   // Convert RGB to hex
   const convertedColors = rgbColors.map(rgb => {
@@ -52,7 +189,8 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   const brandColorPatterns = [
     /background-color:\s*(#[0-9a-fA-F]{6})/g,
     /color:\s*(#[0-9a-fA-F]{6})/g,
-    /fill=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g
+    /fill=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g,
+    /stroke=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g
   ];
   
   const patternColors: string[] = [];
@@ -64,7 +202,7 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     });
   });
   
-  const allColors = [...new Set([...hexColors, ...convertedColors, ...variableColors, ...patternColors])];
+  const allColors = [...new Set([...hexColors, ...convertedColors, ...variableColors, ...gradientColors, ...patternColors])];
   
   // Filter out common colors and grays
   const filteredColors = allColors.filter(color => {
@@ -79,7 +217,7 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     return maxDiff > 30;
   });
   
-  // Sort by frequency for better primary selection
+  // Sort by frequency and color vibrancy
   const colorFreq = new Map();
   allColors.forEach(color => {
     colorFreq.set(color, (colorFreq.get(color) || 0) + 1);
@@ -88,16 +226,25 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   const sortedColors = filteredColors.sort((a, b) => {
     const freqA = colorFreq.get(a) || 0;
     const freqB = colorFreq.get(b) || 0;
+    
+    // If frequencies are similar, prefer more vibrant colors
+    if (Math.abs(freqA - freqB) <= 2) {
+      const hslA = hexToHsl(a);
+      const hslB = hexToHsl(b);
+      return hslB.s - hslA.s; // Higher saturation first
+    }
+    
     return freqB - freqA;
   });
   
-  console.log('Extracted colors:', sortedColors);
+  console.log('Extracted colors before harmonization:', sortedColors);
   
-  return {
-    primary: sortedColors[0] || '#e74c3c',
-    secondary: sortedColors[1] || '#ffffff',
-    accent: sortedColors[2] || '#3498db'
-  };
+  // Apply smart color harmonization
+  const harmonizedColors = harmonizeColors(sortedColors.slice(0, 5)); // Use top 5 colors for harmonization
+  
+  console.log('Harmonized colors:', harmonizedColors);
+  
+  return harmonizedColors;
 }
 
 // ============================================================================
