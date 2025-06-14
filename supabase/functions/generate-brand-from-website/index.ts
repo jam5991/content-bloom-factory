@@ -163,6 +163,54 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
   return undefined;
 }
 
+async function generateFallbackScreenshot(url: string): Promise<string | null> {
+  try {
+    console.log('Attempting fallback screenshot generation for:', url);
+    
+    // Use htmlcsstoimage.com API as fallback
+    const response = await fetch('https://hcti.io/v1/image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + btoa('user-id:api-key'), // This would need proper API keys
+      },
+      body: JSON.stringify({
+        html: `<iframe src="${url}" width="1200" height="800" style="border: none;"></iframe>`,
+        css: 'body { margin: 0; }',
+        device_scale: 2,
+        viewport_width: 1200,
+        viewport_height: 800
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Fallback screenshot generated:', data.url);
+      return data.url;
+    }
+  } catch (error) {
+    console.error('Fallback screenshot generation failed:', error);
+  }
+
+  // If htmlcsstoimage fails, try screenshot.guru as another fallback
+  try {
+    console.log('Trying screenshot.guru as secondary fallback');
+    const fallbackUrl = `https://screenshot.guru/api/screenshot?url=${encodeURIComponent(url)}&width=1200&height=800&type=jpeg&quality=85`;
+    
+    // Test if the service is available
+    const testResponse = await fetch(fallbackUrl, { method: 'HEAD' });
+    if (testResponse.ok) {
+      console.log('Secondary fallback screenshot URL:', fallbackUrl);
+      return fallbackUrl;
+    }
+  } catch (error) {
+    console.error('Secondary fallback also failed:', error);
+  }
+
+  console.log('All screenshot fallbacks failed');
+  return null;
+}
+
 async function extractBrandInfoWithVision(screenshotUrl: string): Promise<ExtractedBrandInfo> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
@@ -200,7 +248,7 @@ Return only the JSON object, no other text.`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4.1-2025-04-14',
       messages: [
         {
           role: 'user',
@@ -250,6 +298,37 @@ Return only the JSON object, no other text.`;
     console.error('Raw response:', content);
     throw new Error('Failed to parse brand information from AI response');
   }
+}
+
+async function extractBrandFromHTML(html: string, url: string): Promise<ExtractedBrandInfo> {
+  console.log('Extracting brand info from HTML');
+  
+  const brandName = extractBrandName(html);
+  const logoUrl = extractLogoUrl(html, url);
+  
+  let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
+  let fontFamily = 'Arial';
+  
+  try {
+    const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    const cssContent = styleMatches.join('\n');
+    
+    if (cssContent || html) {
+      colors = await extractColorsFromCSS(cssContent, html);
+      fontFamily = extractFontsFromCSS(cssContent);
+    }
+  } catch (error) {
+    console.log('Could not extract advanced styling, using defaults');
+  }
+
+  return {
+    name: brandName,
+    primary_color: colors.primary,
+    secondary_color: colors.secondary,
+    accent_color: colors.accent,
+    font_family: fontFamily,
+    logo_url: logoUrl
+  };
 }
 
 serve(async (req) => {
@@ -328,37 +407,26 @@ serve(async (req) => {
     
     let extractedBrand: ExtractedBrandInfo;
     
-    // Temporarily disable Vision API to fix core functionality
-    // TODO: Re-enable and debug Vision API later
-    console.log('Using HTML parsing (Vision API temporarily disabled)');
-    
-    // Use HTML extraction
-    const brandName = extractBrandName(html);
-    const logoUrl = extractLogoUrl(html, url);
-    
-    let colors = { primary: '#000000', secondary: '#ffffff', accent: '#0066cc' };
-    let fontFamily = 'Arial';
-    
-    try {
-      const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-      const cssContent = styleMatches.join('\n');
-      
-      if (cssContent || html) {
-        colors = await extractColorsFromCSS(cssContent, html);
-        fontFamily = extractFontsFromCSS(cssContent);
-      }
-    } catch (error) {
-      console.log('Could not extract advanced styling, using defaults');
+    // Try to get a screenshot for vision analysis
+    if (!screenshotUrl) {
+      console.log('No screenshot from Firecrawl, trying fallback screenshot generation');
+      screenshotUrl = await generateFallbackScreenshot(url);
     }
-
-    extractedBrand = {
-      name: brandName,
-      primary_color: colors.primary,
-      secondary_color: colors.secondary,
-      accent_color: colors.accent,
-      font_family: fontFamily,
-      logo_url: logoUrl
-    };
+    
+    // Use vision API if we have a screenshot, otherwise fall back to HTML parsing
+    if (screenshotUrl) {
+      console.log('Using Vision API with screenshot for brand extraction');
+      try {
+        extractedBrand = await extractBrandInfoWithVision(screenshotUrl);
+        console.log('Vision API extraction successful');
+      } catch (visionError) {
+        console.log('Vision API failed, falling back to HTML parsing:', visionError.message);
+        extractedBrand = await extractBrandFromHTML(html, url);
+      }
+    } else {
+      console.log('No screenshot available, using HTML parsing only');
+      extractedBrand = await extractBrandFromHTML(html, url);
+    }
 
     console.log('Extracted brand info:', extractedBrand);
 
