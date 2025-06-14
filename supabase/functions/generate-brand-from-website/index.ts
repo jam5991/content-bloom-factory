@@ -246,26 +246,50 @@ async function extractBrandInfoWithVision(screenshotUrl: string): Promise<Extrac
 
   console.log('Screenshot URL for Vision API:', screenshotUrl);
 
-  const prompt = `Analyze this website screenshot and extract the following brand information in JSON format:
+  const enhancedPrompt = `Analyze this website screenshot carefully and extract comprehensive brand information. You are an expert brand analyst with years of experience identifying brand elements from visual designs.
+
+IMPORTANT: Return ONLY a valid JSON object with this exact structure, no additional text:
 
 {
-  "name": "The main brand/company name (clean, without taglines)",
-  "primary_color": "The dominant brand color as hex code",
-  "secondary_color": "A secondary brand color as hex code", 
-  "accent_color": "An accent color used in the design as hex code",
-  "font_family": "The primary font family used (e.g., 'Roboto', 'Arial', 'Open Sans')",
-  "logo_url": "URL of the main logo if clearly visible, or null"
+  "name": "The primary brand/company name (clean, no taglines or descriptive text)",
+  "primary_color": "The most dominant brand color as 6-digit hex code (e.g., #FF5733)",
+  "secondary_color": "A prominent secondary brand color as 6-digit hex code",
+  "accent_color": "An accent/highlight color used in the design as 6-digit hex code",
+  "font_family": "The primary font family name (e.g., 'Roboto', 'Arial', 'Montserrat')",
+  "logo_url": "The URL of the main logo if clearly visible in the image, or null"
 }
 
-Focus on:
-- Brand colors from headers, buttons, logos, and key UI elements
-- Typography choices for headings and main text
-- Clean brand name without marketing copy
-- Only return valid hex color codes (e.g., #FF5733)
+ANALYSIS GUIDELINES:
 
-Return only the JSON object, no other text.`;
+1. BRAND NAME:
+   - Look for the most prominent brand name in headers, navigation, or logo text
+   - Exclude taglines, descriptions, or marketing copy
+   - If multiple names appear, choose the primary brand name
 
-  console.log('Calling OpenAI Vision API for brand extraction');
+2. COLOR EXTRACTION:
+   - Primary: The most frequently used brand color (often in logos, headers, main buttons)
+   - Secondary: A supporting color that complements the primary (backgrounds, text, secondary elements)
+   - Accent: A highlight color used for calls-to-action, links, or emphasis
+   - Avoid pure black (#000000), pure white (#FFFFFF), or common grays
+   - Focus on colors that appear intentionally chosen for branding
+
+3. TYPOGRAPHY:
+   - Identify the main font used in headings and important text
+   - Look for distinctive typography choices
+   - Provide actual font family names when recognizable
+
+4. LOGO DETECTION:
+   - Only include logo_url if you can clearly see a logo image in the screenshot
+   - The URL should point to the actual logo file visible in the image
+
+5. COLOR FORMAT:
+   - ALL colors must be 6-digit hex codes starting with #
+   - Examples: #FF5733, #2C3E50, #E74C3C
+   - Do not use color names, RGB values, or 3-digit hex codes
+
+Focus on elements that appear to be intentional brand choices rather than generic design elements. Prioritize colors and fonts that suggest brand identity over standard web colors.`;
+
+  console.log('Calling OpenAI Vision API (GPT-4o) for enhanced brand extraction');
   
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -274,14 +298,14 @@ Return only the JSON object, no other text.`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4.1-2025-04-14',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: prompt
+              text: enhancedPrompt
             },
             {
               type: 'image_url',
@@ -293,37 +317,89 @@ Return only the JSON object, no other text.`;
           ]
         }
       ],
-      max_tokens: 500,
-      temperature: 0.1
+      max_tokens: 800,
+      temperature: 0.1,
+      response_format: { type: "json_object" }
     })
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`OpenAI API error: ${response.status} - ${errorText}`);
-    throw new Error(`OpenAI API error: ${response.status}`);
+    throw new Error(`OpenAI Vision API failed: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
   const content = data.choices[0].message.content;
   
-  console.log('OpenAI Vision response:', content);
+  console.log('GPT-4o Vision API response:', content);
   
   try {
     const extractedInfo = JSON.parse(content);
-    return {
-      name: extractedInfo.name || 'Brand Name',
-      primary_color: extractedInfo.primary_color || '#000000',
-      secondary_color: extractedInfo.secondary_color || '#ffffff',
-      accent_color: extractedInfo.accent_color || '#0066cc',
-      font_family: extractedInfo.font_family || 'Arial',
-      logo_url: extractedInfo.logo_url || undefined
+    
+    // Validate and sanitize the extracted information
+    const sanitizedBrandInfo: ExtractedBrandInfo = {
+      name: validateBrandName(extractedInfo.name),
+      primary_color: validateHexColor(extractedInfo.primary_color, '#e74c3c'),
+      secondary_color: validateHexColor(extractedInfo.secondary_color, '#ffffff'),
+      accent_color: validateHexColor(extractedInfo.accent_color, '#3498db'),
+      font_family: validateFontFamily(extractedInfo.font_family),
+      logo_url: validateLogoUrl(extractedInfo.logo_url)
     };
+    
+    console.log('Validated brand info:', sanitizedBrandInfo);
+    return sanitizedBrandInfo;
+    
   } catch (parseError) {
     console.error('Failed to parse OpenAI response as JSON:', parseError);
     console.error('Raw response:', content);
-    throw new Error('Failed to parse brand information from AI response');
+    throw new Error('Failed to parse brand information from Vision API response');
   }
+}
+
+// ============================================================================
+// VALIDATION UTILITIES
+// ============================================================================
+
+function validateBrandName(name: any): string {
+  if (typeof name === 'string' && name.trim().length > 0 && name.trim().length < 100) {
+    return name.trim();
+  }
+  return 'Brand Name';
+}
+
+function validateHexColor(color: any, fallback: string): string {
+  if (typeof color === 'string') {
+    const hexPattern = /^#[0-9a-fA-F]{6}$/;
+    if (hexPattern.test(color)) {
+      return color.toUpperCase();
+    }
+  }
+  return fallback;
+}
+
+function validateFontFamily(font: any): string {
+  if (typeof font === 'string' && font.trim().length > 0) {
+    // Clean font family name
+    const cleanFont = font.trim().replace(/['"]/g, '');
+    if (cleanFont.length > 0 && cleanFont.length < 50) {
+      return cleanFont;
+    }
+  }
+  return 'Arial';
+}
+
+function validateLogoUrl(url: any): string | undefined {
+  if (typeof url === 'string' && url.trim().length > 0) {
+    try {
+      new URL(url.trim());
+      return url.trim();
+    } catch {
+      // Invalid URL
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 // ============================================================================
