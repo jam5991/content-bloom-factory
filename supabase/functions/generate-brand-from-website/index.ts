@@ -3372,19 +3372,20 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error generating brand from website:', error);
-    console.error('Full error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    
+    // Graceful degradation: return intelligent fallback even on complete failure
+    const fallbackResult = getIntelligentFallback(url);
+    
     return new Response(
       JSON.stringify({ 
-        success: false, 
+        success: true, 
+        brandInfo: fallbackResult,
+        fallback: true,
         error: error.message 
       }),
-      {
-        status: 500,
+      { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
       }
     );
   }
