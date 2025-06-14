@@ -42,8 +42,38 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// COLOR EXTRACTION UTILITIES
+// ADVANCED COLOR ANALYSIS INTERFACES
 // ============================================================================
+
+interface ColorLab {
+  l: number;
+  a: number;
+  b: number;
+}
+
+interface ColorAnalysis {
+  hex: string;
+  frequency: number;
+  prominence: number;
+  brandRelevance: number;
+  colorDistance: number;
+  colorFamily: string;
+  psychologyScore: number;
+  sources: string[];
+}
+
+interface BrandColorPattern {
+  type: 'monochromatic' | 'analogous' | 'complementary' | 'triadic' | 'split-complementary' | 'tetradic' | 'neutral';
+  colors: string[];
+  harmony_score: number;
+  pattern_confidence: number;
+  brand_strength: number;
+  dominant_family: string;
+  color_relationships: string[];
+}
+
+// ============================================================================
+// COLOR EXTRACTION UTILITIES
 
 // Color harmonization utilities
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
@@ -132,6 +162,313 @@ function harmonizeColors(colors: string[]): { primary: string; secondary: string
   );
 
   return { primary, secondary, accent };
+}
+
+// ============================================================================
+// ADVANCED COLOR DISTANCE ALGORITHMS
+// ============================================================================
+
+// Convert hex to RGB
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+// Convert RGB to LAB color space for accurate color distance
+function rgbToLab(r: number, g: number, b: number): ColorLab {
+  // Normalize RGB values
+  r = r / 255;
+  g = g / 255;
+  b = b / 255;
+
+  // Apply gamma correction
+  r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+  g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+  b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+  // Convert to XYZ
+  let x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  let y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.00000;
+  let z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+
+  // Apply LAB transformation
+  x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + 16/116;
+  y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + 16/116;
+  z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + 16/116;
+
+  return {
+    l: (116 * y) - 16,
+    a: 500 * (x - y),
+    b: 200 * (y - z)
+  };
+}
+
+// Calculate Delta E color distance (CIE76 formula)
+function calculateColorDistance(color1: string, color2: string): number {
+  const rgb1 = hexToRgb(color1);
+  const rgb2 = hexToRgb(color2);
+  
+  if (!rgb1 || !rgb2) return 100; // Maximum distance for invalid colors
+  
+  const lab1 = rgbToLab(rgb1.r, rgb1.g, rgb1.b);
+  const lab2 = rgbToLab(rgb2.r, rgb2.g, rgb2.b);
+  
+  const deltaL = lab1.l - lab2.l;
+  const deltaA = lab1.a - lab2.a;
+  const deltaB = lab1.b - lab2.b;
+  
+  return Math.sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB);
+}
+
+// Advanced Delta E 2000 color distance (more accurate)
+function calculateDeltaE2000(color1: string, color2: string): number {
+  const rgb1 = hexToRgb(color1);
+  const rgb2 = hexToRgb(color2);
+  
+  if (!rgb1 || !rgb2) return 100;
+  
+  const lab1 = rgbToLab(rgb1.r, rgb1.g, rgb1.b);
+  const lab2 = rgbToLab(rgb2.r, rgb2.g, rgb2.b);
+  
+  // Simplified Delta E 2000 calculation
+  const avgL = (lab1.l + lab2.l) / 2;
+  const c1 = Math.sqrt(lab1.a * lab1.a + lab1.b * lab1.b);
+  const c2 = Math.sqrt(lab2.a * lab2.a + lab2.b * lab2.b);
+  const avgC = (c1 + c2) / 2;
+  
+  const deltaL = lab2.l - lab1.l;
+  const deltaC = c2 - c1;
+  const deltaE = Math.sqrt(deltaL * deltaL + deltaC * deltaC);
+  
+  return deltaE;
+}
+
+// ============================================================================
+// BRAND COLOR PATTERN RECOGNITION
+// ============================================================================
+
+// Determine color family for brand pattern recognition
+function getColorFamily(hex: string): string {
+  const hsl = hexToHsl(hex);
+  const { h, s, l } = hsl;
+  
+  // Check for neutral colors first
+  if (s < 10) {
+    if (l > 90) return 'white';
+    if (l < 10) return 'black';
+    if (l > 70) return 'light_gray';
+    if (l < 30) return 'dark_gray';
+    return 'gray';
+  }
+  
+  // Categorize by hue
+  if (h >= 0 && h < 15) return 'red';
+  if (h >= 15 && h < 45) return 'orange';
+  if (h >= 45 && h < 75) return 'yellow';
+  if (h >= 75 && h < 105) return 'yellow_green';
+  if (h >= 105 && h < 135) return 'green';
+  if (h >= 135 && h < 165) return 'cyan';
+  if (h >= 165 && h < 195) return 'cyan_blue';
+  if (h >= 195 && h < 225) return 'blue';
+  if (h >= 225 && h < 255) return 'blue_purple';
+  if (h >= 255 && h < 285) return 'purple';
+  if (h >= 285 && h < 315) return 'magenta';
+  if (h >= 315 && h < 345) return 'pink';
+  if (h >= 345) return 'red';
+  
+  return 'unknown';
+}
+
+// Calculate color psychology score for brand relevance
+function calculateColorPsychologyScore(hex: string, context: string = 'general'): number {
+  const hsl = hexToHsl(hex);
+  const { h, s, l } = hsl;
+  let score = 50; // Base score
+  
+  // Adjust based on saturation and lightness
+  if (s > 70 && l > 20 && l < 80) score += 20; // Vibrant, well-balanced
+  if (s < 20) score -= 10; // Too neutral
+  if (l > 95 || l < 5) score -= 15; // Too extreme
+  
+  // Context-based scoring
+  const colorFamily = getColorFamily(hex);
+  const brandColorBonus: Record<string, number> = {
+    'blue': 15,
+    'red': 12,
+    'green': 10,
+    'orange': 8,
+    'purple': 6,
+    'black': 5,
+    'gray': 3
+  };
+  
+  score += brandColorBonus[colorFamily] || 0;
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+// Detect brand color patterns and harmonies
+function detectBrandColorPattern(colors: string[]): BrandColorPattern {
+  if (colors.length < 2) {
+    return {
+      type: 'monochromatic',
+      colors: colors,
+      harmony_score: 30,
+      pattern_confidence: 20,
+      brand_strength: 25,
+      dominant_family: colors.length > 0 ? getColorFamily(colors[0]) : 'unknown',
+      color_relationships: []
+    };
+  }
+  
+  const hslColors = colors.map(color => ({ hex: color, hsl: hexToHsl(color) }));
+  const hues = hslColors.map(c => c.hsl.h);
+  const families = colors.map(getColorFamily);
+  const dominantFamily = families.reduce((a, b, i, arr) => 
+    arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
+  );
+  
+  // Calculate hue differences
+  const hueDistances: number[] = [];
+  const relationships: string[] = [];
+  
+  for (let i = 0; i < hues.length - 1; i++) {
+    for (let j = i + 1; j < hues.length; j++) {
+      let diff = Math.abs(hues[i] - hues[j]);
+      if (diff > 180) diff = 360 - diff; // Wrap around
+      hueDistances.push(diff);
+      
+      // Determine relationship
+      if (diff < 30) relationships.push('analogous');
+      else if (diff > 150 && diff < 210) relationships.push('complementary');
+      else if (diff > 110 && diff < 130) relationships.push('triadic');
+      else relationships.push('custom');
+    }
+  }
+  
+  const avgHueDistance = hueDistances.reduce((a, b) => a + b, 0) / hueDistances.length;
+  const minDistance = Math.min(...hueDistances);
+  const maxDistance = Math.max(...hueDistances);
+  
+  // Pattern detection logic
+  let pattern: BrandColorPattern;
+  
+  if (minDistance < 30) {
+    // Analogous or monochromatic
+    pattern = {
+      type: avgHueDistance < 15 ? 'monochromatic' : 'analogous',
+      colors: colors,
+      harmony_score: 85,
+      pattern_confidence: 90,
+      brand_strength: 80,
+      dominant_family: dominantFamily,
+      color_relationships: relationships
+    };
+  } else if (hueDistances.some(d => d > 150 && d < 210)) {
+    // Complementary
+    pattern = {
+      type: 'complementary',
+      colors: colors,
+      harmony_score: 90,
+      pattern_confidence: 85,
+      brand_strength: 95,
+      dominant_family: dominantFamily,
+      color_relationships: relationships
+    };
+  } else if (hueDistances.some(d => d > 110 && d < 130)) {
+    // Triadic
+    pattern = {
+      type: 'triadic',
+      colors: colors,
+      harmony_score: 80,
+      pattern_confidence: 75,
+      brand_strength: 85,
+      dominant_family: dominantFamily,
+      color_relationships: relationships
+    };
+  } else if (colors.every(color => {
+    const family = getColorFamily(color);
+    return ['white', 'black', 'gray', 'light_gray', 'dark_gray'].includes(family);
+  })) {
+    // Neutral palette
+    pattern = {
+      type: 'neutral',
+      colors: colors,
+      harmony_score: 70,
+      pattern_confidence: 80,
+      brand_strength: 60,
+      dominant_family: dominantFamily,
+      color_relationships: relationships
+    };
+  } else {
+    // Split-complementary or complex
+    pattern = {
+      type: maxDistance > 270 ? 'tetradic' : 'split-complementary',
+      colors: colors,
+      harmony_score: 65,
+      pattern_confidence: 60,
+      brand_strength: 70,
+      dominant_family: dominantFamily,
+      color_relationships: relationships
+    };
+  }
+  
+  return pattern;
+}
+
+// Advanced color clustering using perceptual distance
+function clusterSimilarColors(colors: ColorAnalysis[], threshold: number = 15): ColorAnalysis[][] {
+  const clusters: ColorAnalysis[][] = [];
+  const used = new Set<number>();
+  
+  for (let i = 0; i < colors.length; i++) {
+    if (used.has(i)) continue;
+    
+    const cluster: ColorAnalysis[] = [colors[i]];
+    used.add(i);
+    
+    for (let j = i + 1; j < colors.length; j++) {
+      if (used.has(j)) continue;
+      
+      const distance = calculateDeltaE2000(colors[i].hex, colors[j].hex);
+      if (distance < threshold) {
+        cluster.push(colors[j]);
+        used.add(j);
+      }
+    }
+    
+    clusters.push(cluster);
+  }
+  
+  return clusters.sort((a, b) => b.length - a.length);
+}
+
+// Filter out non-brand colors using advanced heuristics
+function filterNonBrandColors(colors: ColorAnalysis[]): ColorAnalysis[] {
+  return colors.filter(color => {
+    const hsl = hexToHsl(color.hex);
+    const family = getColorFamily(color.hex);
+    
+    // Filter criteria
+    const isNotPureWhite = !(hsl.l > 98 && hsl.s < 5);
+    const isNotPureBlack = !(hsl.l < 2 && hsl.s < 5);
+    const isNotCommonGray = !(family.includes('gray') && hsl.s < 8 && 
+                              (hsl.l > 85 || hsl.l < 15));
+    const hasMinimumSaturation = hsl.s > 5 || family === 'black';
+    const hasBrandRelevance = color.brandRelevance > 30;
+    const hasSignificantPresence = color.frequency > 2 || color.prominence > 40;
+    
+    return isNotPureWhite && 
+           isNotPureBlack && 
+           isNotCommonGray && 
+           hasMinimumSaturation && 
+           hasBrandRelevance && 
+           hasSignificantPresence;
+  });
 }
 
 function detectGradients(css: string): string[] {
