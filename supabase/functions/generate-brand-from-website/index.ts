@@ -532,19 +532,146 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
 // SCREENSHOT GENERATION UTILITIES
 // ============================================================================
 
-interface ScreenshotProvider {
-  name: string;
-  generateScreenshot: (url: string) => Promise<string | null>;
+interface ScreenshotConfig {
+  width: number;
+  height: number;
+  quality: number;
+  format: 'jpeg' | 'png' | 'webp';
+  fullPage: boolean;
+  waitFor: 'load' | 'networkidle' | 'domcontentloaded';
+  blockAds: boolean;
+  blockCookieBanners: boolean;
+  timeout: number;
 }
 
-// ScreenshotAPI.net provider - most reliable
-async function screenshotApiProvider(url: string): Promise<string | null> {
+interface ScreenshotProvider {
+  name: string;
+  generateScreenshot: (url: string, config: ScreenshotConfig, retryCount?: number) => Promise<string | null>;
+  maxRetries: number;
+}
+
+interface ScreenshotValidation {
+  isValid: boolean;
+  score: number;
+  reasons: string[];
+}
+
+// Default screenshot configuration optimized for brand analysis
+const DEFAULT_SCREENSHOT_CONFIG: ScreenshotConfig = {
+  width: 1200,
+  height: 800,
+  quality: 85,
+  format: 'jpeg',
+  fullPage: false,
+  waitFor: 'load',
+  blockAds: true,
+  blockCookieBanners: true,
+  timeout: 30000
+};
+
+// Screenshot quality validation
+async function validateScreenshot(screenshotUrl: string): Promise<ScreenshotValidation> {
+  const validation: ScreenshotValidation = {
+    isValid: false,
+    score: 0,
+    reasons: []
+  };
+
   try {
-    console.log('Attempting ScreenshotAPI.net for:', url);
+    console.log('Validating screenshot quality:', screenshotUrl);
     
-    const apiUrl = `https://shot.screenshotapi.net/screenshot?token=N8QJ06J-RXBW5QM-HWBJ3T9-21G8M4P&url=${encodeURIComponent(url)}&width=1200&height=800&output=json&file_type=jpeg&quality=80&no_ads=true&no_cookie_banners=true&wait_for_event=load`;
+    // Check if URL is accessible
+    const response = await fetch(screenshotUrl, { method: 'HEAD' });
+    if (!response.ok) {
+      validation.reasons.push(`Screenshot URL not accessible: ${response.status}`);
+      return validation;
+    }
+
+    // Check content type
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.startsWith('image/')) {
+      validation.reasons.push(`Invalid content type: ${contentType}`);
+      return validation;
+    }
+
+    // Check file size (should be reasonable for screenshots)
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      const sizeKB = parseInt(contentLength) / 1024;
+      if (sizeKB < 10) {
+        validation.reasons.push(`Screenshot too small: ${sizeKB}KB`);
+        validation.score -= 30;
+      } else if (sizeKB > 5000) {
+        validation.reasons.push(`Screenshot very large: ${sizeKB}KB`);
+        validation.score -= 10;
+      } else {
+        validation.score += 20;
+      }
+    }
+
+    // Basic validation passed
+    validation.isValid = true;
+    validation.score += 50;
+    validation.reasons.push('Screenshot URL accessible and valid');
+
+    console.log(`Screenshot validation score: ${validation.score}`, validation.reasons);
+    return validation;
+
+  } catch (error) {
+    console.error('Screenshot validation failed:', error);
+    validation.reasons.push(`Validation error: ${error.message}`);
+    return validation;
+  }
+}
+
+// Enhanced retry logic with exponential backoff
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries: number,
+  baseDelay: number = 1000,
+  maxDelay: number = 10000
+): Promise<T | null> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await operation();
+      if (result) return result;
+      
+      if (attempt < maxRetries) {
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+        console.log(`Retry attempt ${attempt + 1}/${maxRetries + 1} in ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (error) {
+      console.error(`Attempt ${attempt + 1} failed:`, error);
+      if (attempt === maxRetries) {
+        throw error;
+      }
+    }
+  }
+  return null;
+}
+
+// ScreenshotAPI.net provider with enhanced parameters
+async function screenshotApiProvider(url: string, config: ScreenshotConfig, retryCount: number = 0): Promise<string | null> {
+  return retryWithBackoff(async () => {
+    console.log(`ScreenshotAPI.net attempt ${retryCount + 1} for:`, url);
     
-    const response = await fetch(apiUrl, {
+    const params = new URLSearchParams({
+      token: 'N8QJ06J-RXBW5QM-HWBJ3T9-21G8M4P',
+      url: url,
+      width: config.width.toString(),
+      height: config.height.toString(),
+      output: 'json',
+      file_type: config.format,
+      quality: config.quality.toString(),
+      no_ads: config.blockAds ? 'true' : 'false',
+      no_cookie_banners: config.blockCookieBanners ? 'true' : 'false',
+      wait_for_event: config.waitFor,
+      full_page: config.fullPage ? 'true' : 'false',
+      timeout: config.timeout.toString()
+    });
+
+    const response = await fetch(`https://shot.screenshotapi.net/screenshot?${params}`, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -554,24 +681,40 @@ async function screenshotApiProvider(url: string): Promise<string | null> {
     if (response.ok) {
       const data = await response.json();
       if (data.screenshot) {
-        console.log('ScreenshotAPI.net screenshot generated:', data.screenshot);
-        return data.screenshot;
+        const validation = await validateScreenshot(data.screenshot);
+        if (validation.isValid && validation.score >= 50) {
+          console.log('ScreenshotAPI.net screenshot validated:', data.screenshot);
+          return data.screenshot;
+        } else {
+          console.log('ScreenshotAPI.net screenshot failed validation:', validation.reasons);
+          return null;
+        }
       }
     }
-  } catch (error) {
-    console.error('ScreenshotAPI.net failed:', error);
-  }
-  return null;
+    return null;
+  }, 2);
 }
 
-// ScrapeOwl provider
-async function scrapeOwlProvider(url: string): Promise<string | null> {
-  try {
-    console.log('Attempting ScrapeOwl for:', url);
+// ScrapeOwl provider with enhanced parameters
+async function scrapeOwlProvider(url: string, config: ScreenshotConfig, retryCount: number = 0): Promise<string | null> {
+  return retryWithBackoff(async () => {
+    console.log(`ScrapeOwl attempt ${retryCount + 1} for:`, url);
     
-    const apiUrl = `https://api.scrapeowl.com/v1/screenshot?api_key=YOUR_API_KEY&url=${encodeURIComponent(url)}&viewport_width=1200&viewport_height=800&format=jpeg&quality=80&wait_for=load&block_ads=true&block_resources=font,stylesheet`;
-    
-    const response = await fetch(apiUrl, {
+    const params = new URLSearchParams({
+      api_key: 'YOUR_API_KEY',
+      url: url,
+      viewport_width: config.width.toString(),
+      viewport_height: config.height.toString(),
+      format: config.format,
+      quality: config.quality.toString(),
+      wait_for: config.waitFor,
+      block_ads: config.blockAds ? 'true' : 'false',
+      block_resources: 'font,stylesheet',
+      full_page: config.fullPage ? 'true' : 'false',
+      timeout: config.timeout.toString()
+    });
+
+    const response = await fetch(`https://api.scrapeowl.com/v1/screenshot?${params}`, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -581,25 +724,26 @@ async function scrapeOwlProvider(url: string): Promise<string | null> {
     if (response.ok) {
       const data = await response.json();
       if (data.screenshot_url) {
-        console.log('ScrapeOwl screenshot generated:', data.screenshot_url);
-        return data.screenshot_url;
+        const validation = await validateScreenshot(data.screenshot_url);
+        if (validation.isValid && validation.score >= 50) {
+          console.log('ScrapeOwl screenshot validated:', data.screenshot_url);
+          return data.screenshot_url;
+        } else {
+          console.log('ScrapeOwl screenshot failed validation:', validation.reasons);
+          return null;
+        }
       }
     }
-  } catch (error) {
-    console.error('ScrapeOwl failed:', error);
-  }
-  return null;
+    return null;
+  }, 2);
 }
 
-// Puppeteer-based screenshot service
-async function puppeteerProvider(url: string): Promise<string | null> {
-  try {
-    console.log('Attempting Puppeteer-based service for:', url);
+// Puppeteer provider with enhanced parameters
+async function puppeteerProvider(url: string, config: ScreenshotConfig, retryCount: number = 0): Promise<string | null> {
+  return retryWithBackoff(async () => {
+    console.log(`Puppeteer service attempt ${retryCount + 1} for:`, url);
     
-    // Using BrowserBase or similar Puppeteer service
-    const apiUrl = 'https://api.browserbase.com/v1/screenshot';
-    
-    const response = await fetch(apiUrl, {
+    const response = await fetch('https://api.browserbase.com/v1/screenshot', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -607,32 +751,38 @@ async function puppeteerProvider(url: string): Promise<string | null> {
       },
       body: JSON.stringify({
         url: url,
-        viewport: { width: 1200, height: 800 },
-        format: 'jpeg',
-        quality: 80,
-        waitUntil: 'networkidle0',
-        blockAds: true,
-        blockCookieBanners: true
+        viewport: { width: config.width, height: config.height },
+        format: config.format,
+        quality: config.quality,
+        waitUntil: config.waitFor === 'networkidle' ? 'networkidle0' : config.waitFor,
+        blockAds: config.blockAds,
+        blockCookieBanners: config.blockCookieBanners,
+        fullPage: config.fullPage,
+        timeout: config.timeout
       })
     });
 
     if (response.ok) {
       const data = await response.json();
       if (data.screenshotUrl) {
-        console.log('Puppeteer service screenshot generated:', data.screenshotUrl);
-        return data.screenshotUrl;
+        const validation = await validateScreenshot(data.screenshotUrl);
+        if (validation.isValid && validation.score >= 50) {
+          console.log('Puppeteer service screenshot validated:', data.screenshotUrl);
+          return data.screenshotUrl;
+        } else {
+          console.log('Puppeteer service screenshot failed validation:', validation.reasons);
+          return null;
+        }
       }
     }
-  } catch (error) {
-    console.error('Puppeteer service failed:', error);
-  }
-  return null;
+    return null;
+  }, 2);
 }
 
-// HTMLCSSToImage provider (existing fallback)
-async function htmlCssToImageProvider(url: string): Promise<string | null> {
-  try {
-    console.log('Attempting HTMLCSSToImage for:', url);
+// HTMLCSSToImage provider with enhanced parameters
+async function htmlCssToImageProvider(url: string, config: ScreenshotConfig, retryCount: number = 0): Promise<string | null> {
+  return retryWithBackoff(async () => {
+    console.log(`HTMLCSSToImage attempt ${retryCount + 1} for:`, url);
     
     const response = await fetch('https://hcti.io/v1/image', {
       method: 'POST',
@@ -641,77 +791,101 @@ async function htmlCssToImageProvider(url: string): Promise<string | null> {
         'Authorization': 'Basic ' + btoa('user-id:api-key'),
       },
       body: JSON.stringify({
-        html: `<iframe src="${url}" width="1200" height="800" style="border: none;"></iframe>`,
+        html: `<iframe src="${url}" width="${config.width}" height="${config.height}" style="border: none;"></iframe>`,
         css: 'body { margin: 0; }',
-        device_scale: 2,
-        viewport_width: 1200,
-        viewport_height: 800
+        device_scale: config.quality > 80 ? 2 : 1,
+        viewport_width: config.width,
+        viewport_height: config.height,
+        format: config.format
       })
     });
 
     if (response.ok) {
       const data = await response.json();
-      console.log('HTMLCSSToImage screenshot generated:', data.url);
-      return data.url;
+      if (data.url) {
+        const validation = await validateScreenshot(data.url);
+        if (validation.isValid && validation.score >= 50) {
+          console.log('HTMLCSSToImage screenshot validated:', data.url);
+          return data.url;
+        } else {
+          console.log('HTMLCSSToImage screenshot failed validation:', validation.reasons);
+          return null;
+        }
+      }
     }
-  } catch (error) {
-    console.error('HTMLCSSToImage failed:', error);
-  }
-  return null;
+    return null;
+  }, 2);
 }
 
-// Screenshot.guru provider
-async function screenshotGuruProvider(url: string): Promise<string | null> {
-  try {
-    console.log('Attempting Screenshot.guru for:', url);
-    const fallbackUrl = `https://screenshot.guru/api/screenshot?url=${encodeURIComponent(url)}&width=1200&height=800&type=jpeg&quality=85`;
+// Screenshot.guru provider with enhanced parameters
+async function screenshotGuruProvider(url: string, config: ScreenshotConfig, retryCount: number = 0): Promise<string | null> {
+  return retryWithBackoff(async () => {
+    console.log(`Screenshot.guru attempt ${retryCount + 1} for:`, url);
     
-    const testResponse = await fetch(fallbackUrl, { method: 'HEAD' });
+    const params = new URLSearchParams({
+      url: url,
+      width: config.width.toString(),
+      height: config.height.toString(),
+      type: config.format,
+      quality: config.quality.toString(),
+      full_page: config.fullPage ? '1' : '0'
+    });
+
+    const screenshotUrl = `https://screenshot.guru/api/screenshot?${params}`;
+    const testResponse = await fetch(screenshotUrl, { method: 'HEAD' });
+    
     if (testResponse.ok) {
-      console.log('Screenshot.guru screenshot URL:', fallbackUrl);
-      return fallbackUrl;
-    }
-  } catch (error) {
-    console.error('Screenshot.guru failed:', error);
-  }
-  return null;
-}
-
-// Main screenshot generation with comprehensive fallback chain
-async function generateFallbackScreenshot(url: string): Promise<string | null> {
-  console.log('Starting screenshot generation with multi-provider fallback chain for:', url);
-  
-  // Define provider chain in order of reliability
-  const providers: ScreenshotProvider[] = [
-    { name: 'ScreenshotAPI.net', generateScreenshot: screenshotApiProvider },
-    { name: 'Puppeteer Service', generateScreenshot: puppeteerProvider },
-    { name: 'ScrapeOwl', generateScreenshot: scrapeOwlProvider },
-    { name: 'HTMLCSSToImage', generateScreenshot: htmlCssToImageProvider },
-    { name: 'Screenshot.guru', generateScreenshot: screenshotGuruProvider }
-  ];
-
-  // Try each provider in sequence until one succeeds
-  for (const provider of providers) {
-    try {
-      console.log(`Attempting ${provider.name}...`);
-      const screenshotUrl = await provider.generateScreenshot(url);
-      
-      if (screenshotUrl) {
-        console.log(`✓ ${provider.name} succeeded:`, screenshotUrl);
+      const validation = await validateScreenshot(screenshotUrl);
+      if (validation.isValid && validation.score >= 50) {
+        console.log('Screenshot.guru screenshot validated:', screenshotUrl);
         return screenshotUrl;
       } else {
-        console.log(`✗ ${provider.name} returned null`);
+        console.log('Screenshot.guru screenshot failed validation:', validation.reasons);
+        return null;
       }
-    } catch (error) {
-      console.error(`✗ ${provider.name} error:`, error);
-      continue;
+    }
+    return null;
+  }, 2);
+}
+
+// Main screenshot generation with enhanced configuration and validation
+async function generateFallbackScreenshot(url: string, customConfig?: Partial<ScreenshotConfig>): Promise<string | null> {
+  const config = { ...DEFAULT_SCREENSHOT_CONFIG, ...customConfig };
+  console.log('Starting enhanced screenshot generation with config:', config);
+  
+  // Define provider chain with retry limits
+  const providers: ScreenshotProvider[] = [
+    { name: 'ScreenshotAPI.net', generateScreenshot: screenshotApiProvider, maxRetries: 3 },
+    { name: 'Puppeteer Service', generateScreenshot: puppeteerProvider, maxRetries: 2 },
+    { name: 'ScrapeOwl', generateScreenshot: scrapeOwlProvider, maxRetries: 2 },
+    { name: 'HTMLCSSToImage', generateScreenshot: htmlCssToImageProvider, maxRetries: 2 },
+    { name: 'Screenshot.guru', generateScreenshot: screenshotGuruProvider, maxRetries: 1 }
+  ];
+
+  // Try each provider with their specific retry logic
+  for (const provider of providers) {
+    for (let retry = 0; retry < provider.maxRetries; retry++) {
+      try {
+        console.log(`Attempting ${provider.name} (retry ${retry + 1}/${provider.maxRetries})...`);
+        const screenshotUrl = await provider.generateScreenshot(url, config, retry);
+        
+        if (screenshotUrl) {
+          console.log(`✓ ${provider.name} succeeded with validation:`, screenshotUrl);
+          return screenshotUrl;
+        } else {
+          console.log(`✗ ${provider.name} attempt ${retry + 1} failed or invalid`);
+        }
+      } catch (error) {
+        console.error(`✗ ${provider.name} attempt ${retry + 1} error:`, error);
+        continue;
+      }
     }
     
-    // Small delay between attempts to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Delay between different providers
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
-  console.log('All screenshot providers failed in fallback chain');
+  console.log('All screenshot providers failed with retries and validation');
   return null;
 }
 
