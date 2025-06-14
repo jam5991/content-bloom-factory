@@ -246,48 +246,66 @@ async function extractBrandInfoWithVision(screenshotUrl: string): Promise<Extrac
 
   console.log('Screenshot URL for Vision API:', screenshotUrl);
 
-  const enhancedPrompt = `Analyze this website screenshot carefully and extract comprehensive brand information. You are an expert brand analyst with years of experience identifying brand elements from visual designs.
+  const enhancedPrompt = `You are an expert brand analyst and visual designer with 15+ years of experience in brand identity extraction and color theory. Analyze this website screenshot with meticulous attention to brand elements.
 
-IMPORTANT: Return ONLY a valid JSON object with this exact structure, no additional text:
+CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure:
 
 {
-  "name": "The primary brand/company name (clean, no taglines or descriptive text)",
-  "primary_color": "The most dominant brand color as 6-digit hex code (e.g., #FF5733)",
-  "secondary_color": "A prominent secondary brand color as 6-digit hex code",
-  "accent_color": "An accent/highlight color used in the design as 6-digit hex code",
-  "font_family": "The primary font family name (e.g., 'Roboto', 'Arial', 'Montserrat')",
-  "logo_url": "The URL of the main logo if clearly visible in the image, or null"
+  "name": "Primary brand/company name",
+  "primary_color": "#RRGGBB",
+  "secondary_color": "#RRGGBB", 
+  "accent_color": "#RRGGBB",
+  "font_family": "Font name",
+  "logo_url": "URL or null"
 }
 
-ANALYSIS GUIDELINES:
+DETAILED ANALYSIS FRAMEWORK:
 
-1. BRAND NAME:
-   - Look for the most prominent brand name in headers, navigation, or logo text
-   - Exclude taglines, descriptions, or marketing copy
-   - If multiple names appear, choose the primary brand name
+🎨 COLOR EXTRACTION PRIORITIES:
+1. PRIMARY COLOR: The most dominant brand color that defines identity
+   - Look for: Logo colors, main navigation, primary buttons, headers
+   - Avoid: Generic blacks, whites, light grays
+   - Consider: Colors that appear in multiple brand touchpoints
+   
+2. SECONDARY COLOR: Supporting color that complements primary
+   - Look for: Background colors, secondary navigation, subheadings
+   - Consider: Colors used for content sections, cards, panels
+   
+3. ACCENT COLOR: Highlight color for CTAs and emphasis
+   - Look for: Call-to-action buttons, links, highlights, badges
+   - Consider: Colors that draw attention and guide user actions
 
-2. COLOR EXTRACTION:
-   - Primary: The most frequently used brand color (often in logos, headers, main buttons)
-   - Secondary: A supporting color that complements the primary (backgrounds, text, secondary elements)
-   - Accent: A highlight color used for calls-to-action, links, or emphasis
-   - Avoid pure black (#000000), pure white (#FFFFFF), or common grays
-   - Focus on colors that appear intentionally chosen for branding
+🔤 TYPOGRAPHY ANALYSIS:
+- Identify custom fonts vs system fonts
+- Look for distinctive letterforms, weights, spacing
+- Note: Sans-serif (modern), Serif (traditional), Script (decorative)
+- Recognize popular web fonts: Roboto, Open Sans, Montserrat, Poppins, etc.
 
-3. TYPOGRAPHY:
-   - Identify the main font used in headings and important text
-   - Look for distinctive typography choices
-   - Provide actual font family names when recognizable
+🏷️ BRAND NAME EXTRACTION:
+- Prioritize: Logo text, main navigation brand name, page titles
+- Ignore: Taglines, descriptive text, marketing copy
+- Consider: Shortest, most prominent brand identifier
 
-4. LOGO DETECTION:
-   - Only include logo_url if you can clearly see a logo image in the screenshot
-   - The URL should point to the actual logo file visible in the image
+🖼️ LOGO IDENTIFICATION:
+- Only include if clearly visible logo image in screenshot
+- Must be actual logo file URL, not placeholder or icon
 
-5. COLOR FORMAT:
-   - ALL colors must be 6-digit hex codes starting with #
-   - Examples: #FF5733, #2C3E50, #E74C3C
-   - Do not use color names, RGB values, or 3-digit hex codes
+🎯 BRAND CONTEXT AWARENESS:
+Consider the industry/sector suggested by design:
+- Tech: Clean, minimal, blue/gray palettes
+- Finance: Conservative, blue/green, serif fonts  
+- Creative: Bold colors, unique typography
+- E-commerce: High contrast, action-oriented
+- Healthcare: Trust colors (blue/green), clean fonts
 
-Focus on elements that appear to be intentional brand choices rather than generic design elements. Prioritize colors and fonts that suggest brand identity over standard web colors.`;
+QUALITY STANDARDS:
+✅ All hex codes must be exactly 6 digits: #FF5733
+✅ Font names should be real, recognizable families
+✅ Brand name should be concise (2-4 words max)
+✅ Logo URL must be valid if provided
+
+
+Focus on intentional brand design choices that distinguish this company from generic websites. Prioritize elements that appear deliberately chosen for brand identity over standard web design patterns.`;
 
   console.log('Calling OpenAI Vision API (GPT-4o) for enhanced brand extraction');
   
@@ -317,8 +335,8 @@ Focus on elements that appear to be intentional brand choices rather than generi
           ]
         }
       ],
-      max_tokens: 800,
-      temperature: 0.1,
+      max_tokens: 1200,
+      temperature: 0.05,
       response_format: { type: "json_object" }
     })
   });
@@ -438,6 +456,122 @@ async function extractBrandFromHTML(html: string, url: string): Promise<Extracte
 }
 
 // ============================================================================
+// HYBRID BRAND EXTRACTION (COMBINES VISION + HTML)
+// ============================================================================
+
+async function extractBrandInfoHybrid(screenshotUrl: string | null, html: string, url: string): Promise<ExtractedBrandInfo> {
+  console.log('Starting hybrid brand extraction combining vision + HTML analysis');
+  
+  let visionResult: ExtractedBrandInfo | null = null;
+  let htmlResult: ExtractedBrandInfo | null = null;
+  
+  // Try vision analysis first if screenshot is available
+  if (screenshotUrl) {
+    try {
+      console.log('Attempting vision analysis...');
+      visionResult = await extractBrandInfoWithVision(screenshotUrl);
+      console.log('Vision analysis successful:', visionResult);
+    } catch (visionError) {
+      console.log('Vision analysis failed:', visionError.message);
+    }
+  }
+  
+  // Always run HTML analysis as backup/comparison
+  try {
+    console.log('Running HTML analysis...');
+    htmlResult = await extractBrandFromHTML(html, url);
+    console.log('HTML analysis complete:', htmlResult);
+  } catch (htmlError) {
+    console.log('HTML analysis failed:', htmlError.message);
+  }
+  
+  // Combine results using smart merging logic
+  const finalResult = combineExtractionResults(visionResult, htmlResult);
+  console.log('Hybrid extraction final result:', finalResult);
+  
+  return finalResult;
+}
+
+function combineExtractionResults(vision: ExtractedBrandInfo | null, html: ExtractedBrandInfo | null): ExtractedBrandInfo {
+  // If only one source worked, use it
+  if (vision && !html) return vision;
+  if (html && !vision) return html;
+  if (!vision && !html) {
+    return {
+      name: 'Brand Name',
+      primary_color: '#e74c3c',
+      secondary_color: '#ffffff',
+      accent_color: '#3498db',
+      font_family: 'Arial',
+      logo_url: undefined
+    };
+  }
+  
+  // Both sources available - combine intelligently
+  const combined: ExtractedBrandInfo = {
+    // Prefer vision for brand name (better at reading logos/headers)
+    name: selectBestBrandName(vision!.name, html!.name),
+    
+    // Use color preference logic
+    primary_color: selectBestColor(vision!.primary_color, html!.primary_color, '#e74c3c'),
+    secondary_color: selectBestColor(vision!.secondary_color, html!.secondary_color, '#ffffff'),
+    accent_color: selectBestColor(vision!.accent_color, html!.accent_color, '#3498db'),
+    
+    // Prefer vision for font family (better at recognizing fonts visually)
+    font_family: vision!.font_family !== 'Arial' ? vision!.font_family : html!.font_family,
+    
+    // Prefer HTML for logo URL (more accurate URL extraction)
+    logo_url: html!.logo_url || vision!.logo_url
+  };
+  
+  console.log('Combined extraction results:', {
+    vision_name: vision!.name,
+    html_name: html!.name,
+    selected_name: combined.name,
+    vision_colors: [vision!.primary_color, vision!.secondary_color, vision!.accent_color],
+    html_colors: [html!.primary_color, html!.secondary_color, html!.accent_color],
+    selected_colors: [combined.primary_color, combined.secondary_color, combined.accent_color]
+  });
+  
+  return combined;
+}
+
+function selectBestBrandName(visionName: string, htmlName: string): string {
+  // Prefer vision if it's not the default
+  if (visionName !== 'Brand Name' && visionName.length > 1) {
+    return visionName;
+  }
+  
+  // Fall back to HTML if it's not default
+  if (htmlName !== 'Brand Name' && htmlName.length > 1) {
+    return htmlName;
+  }
+  
+  return 'Brand Name';
+}
+
+function selectBestColor(visionColor: string, htmlColor: string, fallback: string): string {
+  // Helper to check if color is default/generic
+  const isGenericColor = (color: string) => {
+    const generic = ['#000000', '#FFFFFF', '#E74C3C', '#3498DB'];
+    return generic.includes(color.toUpperCase());
+  };
+  
+  // Prefer vision if it's not generic
+  if (!isGenericColor(visionColor)) {
+    return visionColor;
+  }
+  
+  // Fall back to HTML if it's not generic
+  if (!isGenericColor(htmlColor)) {
+    return htmlColor;
+  }
+  
+  // Both are generic, prefer vision
+  return visionColor || fallback;
+}
+
+// ============================================================================
 // MAIN REQUEST HANDLER
 // ============================================================================
 
@@ -523,20 +657,9 @@ serve(async (req) => {
       screenshotUrl = await generateFallbackScreenshot(url);
     }
     
-    // Use vision API if we have a screenshot, otherwise fall back to HTML parsing
-    if (screenshotUrl) {
-      console.log('Using Vision API with screenshot for brand extraction');
-      try {
-        extractedBrand = await extractBrandInfoWithVision(screenshotUrl);
-        console.log('Vision API extraction successful');
-      } catch (visionError) {
-        console.log('Vision API failed, falling back to HTML parsing:', visionError.message);
-        extractedBrand = await extractBrandFromHTML(html, url);
-      }
-    } else {
-      console.log('No screenshot available, using HTML parsing only');
-      extractedBrand = await extractBrandFromHTML(html, url);
-    }
+    // Use hybrid approach that combines vision + HTML analysis
+    console.log('Using hybrid extraction approach (vision + HTML)');
+    extractedBrand = await extractBrandInfoHybrid(screenshotUrl, html, url);
 
     console.log('Extracted brand info:', extractedBrand);
 
