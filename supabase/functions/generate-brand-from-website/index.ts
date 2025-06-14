@@ -903,13 +903,47 @@ async function extractBrandInfoWithVision(screenshotUrl: string): Promise<Extrac
 
   const enhancedPrompt = `You are an expert brand analyst and visual designer with 15+ years of experience in brand identity extraction, color theory, typography, logo analysis, and brand personality assessment. Analyze this website screenshot with meticulous attention to brand elements.
 
+CRITICAL COLOR EXTRACTION INSTRUCTIONS:
+1. IDENTIFY EXACT HEX COLOR CODES from the website's visual elements
+2. PRIORITIZE colors from: header, navigation bar, buttons, logo, brand elements, CTAs
+3. AVOID generic text colors (#000000, #333333, #666666, #999999, #ffffff) unless they are clearly intentional brand colors
+4. EXTRACT colors that appear repeatedly across brand elements
+5. ANALYZE color relationships and brand color systems
+6. PROVIDE CONFIDENCE LEVELS (0-100) for each color based on:
+   - Frequency of appearance in brand elements (20 points)
+   - Color prominence and visual weight (25 points)
+   - Strategic placement (headers, logos, CTAs) (25 points)
+   - Color harmony with other brand elements (15 points)
+   - Professional color theory principles (15 points)
+
+COLOR CONFIDENCE SCORING SYSTEM:
+- 90-100: Dominant brand colors (logo primary, main CTAs, brand headers)
+- 75-89: Strong brand colors (secondary logos, primary navigation, key buttons)
+- 60-74: Supporting brand colors (accents, highlights, secondary CTAs)
+- 45-59: Possible brand colors (backgrounds, borders, subtle accents)
+- Below 45: Uncertain or likely non-brand colors
+
+SPECIFIC COLOR ANALYSIS REQUIREMENTS:
+- Primary Color: Most dominant brand color (highest confidence, most prominent)
+- Secondary Color: Supporting brand color or main background color
+- Accent Color: Highlight/CTA color or complementary brand color
+- ALL COLORS must be exact hex codes (#RRGGBB format)
+- INCLUDE individual confidence scores (integers 0-100) for each color
+- PROVIDE reasoning for each color selection
+
 CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure:
 
 {
   "name": "Primary brand/company name",
   "primary_color": "#RRGGBB",
+  "primary_color_confidence": 85,
+  "primary_color_reasoning": "Detailed explanation for primary color selection and confidence score",
   "secondary_color": "#RRGGBB", 
+  "secondary_color_confidence": 75,
+  "secondary_color_reasoning": "Detailed explanation for secondary color selection and confidence score",
   "accent_color": "#RRGGBB",
+  "accent_color_confidence": 80,
+  "accent_color_reasoning": "Detailed explanation for accent color selection and confidence score",
   "font_family": "Font name",
   "logo_url": "URL or null",
   "personality": {
@@ -919,30 +953,43 @@ CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure
     "design_approach": "Overall design philosophy"
   },
   "confidence_scores": {
-    "name": 0.95,
-    "colors": 0.88,
-    "typography": 0.92,
-    "logo": 0.75,
-    "personality": 0.85,
-    "overall": 0.87
+    "name": 95,
+    "colors": 82,
+    "typography": 78,
+    "logo": 65,
+    "personality": 75,
+    "overall": 79
+  },
+  "color_analysis": {
+    "extracted_colors": ["#color1", "#color2", "#color3", "#color4", "#color5"],
+    "color_sources": ["logo", "header", "buttons", "navigation", "accents"],
+    "color_frequencies": [5, 4, 3, 2, 1],
+    "brand_elements_analyzed": ["header", "logo", "buttons", "navigation", "footer", "CTAs"],
+    "color_harmony_score": 85,
+    "color_psychology_notes": "Brief analysis of color psychology and brand implications"
   }
 }
 
-DETAILED ANALYSIS FRAMEWORK:
+🎨 DETAILED COLOR EXTRACTION PRIORITIES:
 
-🎨 COLOR EXTRACTION PRIORITIES:
-1. PRIMARY COLOR: The most dominant brand color that defines identity
-   - Look for: Logo colors, main navigation, primary buttons, headers
-   - Avoid: Generic blacks, whites, light grays
-   - Consider: Colors that appear in multiple brand touchpoints
-   
-2. SECONDARY COLOR: Supporting color that complements primary
-   - Look for: Background colors, secondary navigation, subheadings
-   - Consider: Colors used for content sections, cards, panels
-   
-3. ACCENT COLOR: Highlight color for CTAs and emphasis
-   - Look for: Call-to-action buttons, links, highlights, badges
-   - Consider: Colors that draw attention and guide user actions
+1. PRIMARY COLOR IDENTIFICATION:
+   - Examine logo for dominant color
+   - Check header/navigation background colors
+   - Look for most frequently used brand color
+   - Assess visual weight and prominence
+   - Must appear in multiple brand elements
+
+2. SECONDARY COLOR IDENTIFICATION:
+   - Look for complementary colors to primary
+   - Check background colors of main sections
+   - Examine secondary navigation elements
+   - Consider colors used for content areas
+
+3. ACCENT COLOR IDENTIFICATION:
+   - Focus on call-to-action buttons
+   - Look for link colors and highlights
+   - Check interactive element colors
+   - Identify colors used for emphasis
 
 🔤 ADVANCED TYPOGRAPHY ANALYSIS:
 EXAMINE WITH EXTREME PRECISION:
