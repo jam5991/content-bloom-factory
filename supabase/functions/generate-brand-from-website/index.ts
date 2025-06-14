@@ -783,6 +783,176 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
 }
 
 // ============================================================================
+// INDUSTRY-SPECIFIC COLOR PREFERENCES
+// ============================================================================
+
+const INDUSTRY_COLOR_PREFERENCES = {
+  technology: {
+    preferred: ['#0066cc', '#00a8ff', '#2ed573', '#ff6b6b'],
+    avoid: ['#8b4513', '#daa520'],
+    characteristics: ['modern', 'clean', 'innovative']
+  },
+  healthcare: {
+    preferred: ['#4a90e2', '#2ecc71', '#27ae60', '#ffffff'],
+    avoid: ['#e74c3c', '#c0392b'],
+    characteristics: ['trustworthy', 'calm', 'professional']
+  },
+  finance: {
+    preferred: ['#2c3e50', '#34495e', '#3498db', '#1abc9c'],
+    avoid: ['#e74c3c', '#f39c12'],
+    characteristics: ['stable', 'trustworthy', 'professional']
+  },
+  retail: {
+    preferred: ['#e74c3c', '#f39c12', '#9b59b6', '#e67e22'],
+    avoid: ['#2c3e50', '#34495e'],
+    characteristics: ['vibrant', 'engaging', 'energetic']
+  },
+  food: {
+    preferred: ['#e67e22', '#f39c12', '#27ae60', '#c0392b'],
+    avoid: ['#9b59b6', '#3498db'],
+    characteristics: ['appetizing', 'warm', 'natural']
+  },
+  education: {
+    preferred: ['#3498db', '#2ecc71', '#f39c12', '#9b59b6'],
+    avoid: ['#2c3e50', '#e74c3c'],
+    characteristics: ['friendly', 'approachable', 'inspiring']
+  },
+  default: {
+    preferred: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12'],
+    avoid: [],
+    characteristics: ['balanced', 'versatile', 'appealing']
+  }
+};
+
+// ============================================================================
+// ACCESSIBILITY COLOR STANDARDS
+// ============================================================================
+
+const ACCESSIBILITY_STANDARDS = {
+  AA: { normalText: 4.5, largeText: 3.0 },
+  AAA: { normalText: 7.0, largeText: 4.5 }
+};
+
+// Calculate contrast ratio between two colors
+function calculateContrastRatio(color1: { r: number; g: number; b: number }, color2: { r: number; g: number; b: number }): number {
+  const getLuminance = (r: number, g: number, b: number): number => {
+    const [rs, gs, bs] = [r, g, b].map(c => {
+      c = c / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  };
+
+  const lum1 = getLuminance(color1.r, color1.g, color1.b);
+  const lum2 = getLuminance(color2.r, color2.g, color2.b);
+  const brightest = Math.max(lum1, lum2);
+  const darkest = Math.min(lum1, lum2);
+  
+  return (brightest + 0.05) / (darkest + 0.05);
+}
+
+// Calculate accessibility score for a color
+function calculateAccessibilityScore(rgb: { r: number; g: number; b: number }): number {
+  const white = { r: 255, g: 255, b: 255 };
+  const black = { r: 0, g: 0, b: 0 };
+  
+  const contrastWithWhite = calculateContrastRatio(rgb, white);
+  const contrastWithBlack = calculateContrastRatio(rgb, black);
+  
+  const maxContrast = Math.max(contrastWithWhite, contrastWithBlack);
+  
+  // Score based on WCAG AA compliance
+  if (maxContrast >= ACCESSIBILITY_STANDARDS.AAA.normalText) return 100;
+  if (maxContrast >= ACCESSIBILITY_STANDARDS.AA.normalText) return 80;
+  if (maxContrast >= ACCESSIBILITY_STANDARDS.AA.largeText) return 60;
+  return Math.max(20, (maxContrast / ACCESSIBILITY_STANDARDS.AA.normalText) * 60);
+}
+
+// Calculate contrast ratios with common backgrounds
+function calculateContrastRatios(rgb: { r: number; g: number; b: number }): { white: number; black: number; gray: number } {
+  const white = { r: 255, g: 255, b: 255 };
+  const black = { r: 0, g: 0, b: 0 };
+  const gray = { r: 128, g: 128, b: 128 };
+  
+  return {
+    white: calculateContrastRatio(rgb, white),
+    black: calculateContrastRatio(rgb, black),
+    gray: calculateContrastRatio(rgb, gray)
+  };
+}
+
+// Calculate industry alignment score
+function calculateIndustryScore(hex: string, industryPrefs: any): number {
+  let score = 50; // Base score
+  
+  const rgb = hexToRgb(hex);
+  if (!rgb) return score;
+  
+  // Check against preferred colors
+  for (const prefColor of industryPrefs.preferred) {
+    const distance = calculateColorDistance(hex, prefColor);
+    if (distance < 30) score += 30;
+    else if (distance < 50) score += 15;
+  }
+  
+  // Check against colors to avoid
+  for (const avoidColor of industryPrefs.avoid) {
+    const distance = calculateColorDistance(hex, avoidColor);
+    if (distance < 20) score -= 40;
+    else if (distance < 40) score -= 20;
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+// Calculate overall industry alignment
+function calculateIndustryAlignment(colors: any[], industryPrefs: any): number {
+  if (colors.length === 0) return 0;
+  
+  const totalScore = colors.reduce((sum, color) => sum + color.industryScore, 0);
+  return totalScore / colors.length;
+}
+
+// Calculate accessibility compliance percentage
+function calculateAccessibilityCompliance(colors: any[]): number {
+  if (colors.length === 0) return 0;
+  
+  const compliantColors = colors.filter(color => color.accessibilityScore >= 60);
+  return (compliantColors.length / colors.length) * 100;
+}
+
+// Detect industry from website content
+function detectIndustry(html: string, css: string): string {
+  const content = (html + ' ' + css).toLowerCase();
+  
+  const industryKeywords = {
+    technology: ['tech', 'software', 'app', 'digital', 'innovation', 'startup', 'saas', 'api'],
+    healthcare: ['health', 'medical', 'hospital', 'doctor', 'patient', 'care', 'wellness', 'clinic'],
+    finance: ['bank', 'finance', 'investment', 'money', 'loan', 'credit', 'payment', 'financial'],
+    retail: ['shop', 'store', 'buy', 'sale', 'product', 'ecommerce', 'retail', 'fashion'],
+    food: ['food', 'restaurant', 'menu', 'eat', 'recipe', 'cooking', 'cuisine', 'dining'],
+    education: ['school', 'education', 'learn', 'course', 'student', 'university', 'teaching']
+  };
+  
+  let maxScore = 0;
+  let detectedIndustry = 'default';
+  
+  for (const [industry, keywords] of Object.entries(industryKeywords)) {
+    const score = keywords.reduce((sum, keyword) => {
+      const matches = (content.match(new RegExp(keyword, 'g')) || []).length;
+      return sum + matches;
+    }, 0);
+    
+    if (score > maxScore) {
+      maxScore = score;
+      detectedIndustry = industry;
+    }
+  }
+  
+  return maxScore > 2 ? detectedIndustry : 'default';
+}
+
+// ============================================================================
 // FONT EXTRACTION UTILITIES
 // ============================================================================
 
@@ -1474,9 +1644,28 @@ QUALITY STANDARDS:
 ✅ Confidence scores must be realistic decimals between 0.0-1.0
 ✅ Personality traits must match established brand archetypes
 
-Focus on intentional brand design choices that distinguish this company from generic websites. Prioritize elements that appear deliberately chosen for brand identity over standard web design patterns.`;
+Focus on intentional brand design choices that distinguish this company from generic websites. Prioritize elements that appear deliberately chosen for brand identity over standard web design patterns.
 
-  console.log('Calling OpenAI Vision API (GPT-4o) for enhanced brand extraction');
+🏭 INDUSTRY-SPECIFIC COLOR PREFERENCES:
+- Technology: Blues (#0066cc), Greens (#2ed573), Modern colors
+- Healthcare: Calming blues (#4a90e2), Trustworthy greens (#2ecc71)
+- Finance: Professional blues (#3498db), Stable grays (#2c3e50)
+- Retail: Energetic reds (#e74c3c), Engaging oranges (#f39c12)
+- Food: Appetizing oranges (#e67e22), Natural greens (#27ae60)
+- Education: Friendly blues (#3498db), Inspiring purples (#9b59b6)
+
+♿ ACCESSIBILITY REQUIREMENTS:
+- Primary colors must have ≥4.5:1 contrast ratio with text (WCAG AA)
+- Secondary colors should meet ≥3.0:1 for large text
+- Accent colors must be distinguishable by colorblind users
+- Evaluate against both light (#ffffff) and dark (#000000) backgrounds
+- Prioritize accessible color combinations over pure aesthetics`;
+
+  // Detect industry from content for better color selection
+  const detectedIndustry = detectIndustry('', ''); // Will be enhanced with actual content
+  const industryPrefs = INDUSTRY_COLOR_PREFERENCES[detectedIndustry as keyof typeof INDUSTRY_COLOR_PREFERENCES] || INDUSTRY_COLOR_PREFERENCES.default;
+
+  console.log(`Calling OpenAI Vision API (GPT-4o) for enhanced brand extraction with ${detectedIndustry} industry focus`);
   
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
