@@ -304,7 +304,6 @@ QUALITY STANDARDS:
 ✅ Brand name should be concise (2-4 words max)
 ✅ Logo URL must be valid if provided
 
-
 Focus on intentional brand design choices that distinguish this company from generic websites. Prioritize elements that appear deliberately chosen for brand identity over standard web design patterns.`;
 
   console.log('Calling OpenAI Vision API (GPT-4o) for enhanced brand extraction');
