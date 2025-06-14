@@ -1036,6 +1036,339 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
 }
 
 // ============================================================================
+// ENHANCED COLOR SCORING SYSTEM
+// ============================================================================
+
+// Color extraction methods with different weights
+enum ColorExtractionMethod {
+  VISION_AI = 'vision_ai',
+  CSS_BRAND_ELEMENTS = 'css_brand_elements',
+  CSS_VARIABLES = 'css_variables',
+  HTML_INLINE = 'html_inline',
+  GRADIENT_ANALYSIS = 'gradient_analysis',
+  GENERIC_CSS = 'generic_css',
+  LOCAL_ANALYSIS = 'local_analysis'
+}
+
+// Method weights (higher = more important)
+const METHOD_WEIGHTS = {
+  [ColorExtractionMethod.VISION_AI]: 1.0,
+  [ColorExtractionMethod.CSS_BRAND_ELEMENTS]: 0.9,
+  [ColorExtractionMethod.CSS_VARIABLES]: 0.8,
+  [ColorExtractionMethod.HTML_INLINE]: 0.7,
+  [ColorExtractionMethod.GRADIENT_ANALYSIS]: 0.6,
+  [ColorExtractionMethod.GENERIC_CSS]: 0.4,
+  [ColorExtractionMethod.LOCAL_ANALYSIS]: 0.3
+};
+
+// Common generic colors to penalize
+const GENERIC_COLORS = new Set([
+  '#FFFFFF', '#000000', '#F5F5F5', '#EEEEEE', '#DDDDDD', '#CCCCCC',
+  '#BBBBBB', '#AAAAAA', '#999999', '#888888', '#777777', '#666666',
+  '#555555', '#444444', '#333333', '#222222', '#111111', '#F0F0F0',
+  '#E0E0E0', '#D0D0D0', '#C0C0C0', '#B0B0B0', '#A0A0A0', '#909090',
+  '#808080', '#707070', '#606060', '#505050', '#404040', '#303030',
+  '#202020', '#101010', '#FAFAFA', '#F9F9F9', '#F8F8F8', '#F7F7F7'
+]);
+
+interface ColorScore {
+  hex: string;
+  score: number;
+  methods: ColorExtractionMethod[];
+  frequency: number;
+  brandRelevance: number;
+  accessibility: number;
+  industry: number;
+  sources: string[];
+}
+
+// Calculate comprehensive color score
+function calculateColorScore(
+  hex: string,
+  methods: ColorExtractionMethod[],
+  frequency: number = 1,
+  brandContext: any = {},
+  industryPrefs: any = {},
+  sources: string[] = []
+): ColorScore {
+  let score = 0;
+  
+  // 1. Method-based scoring (40% weight)
+  const methodScore = methods.reduce((total, method) => {
+    return total + METHOD_WEIGHTS[method];
+  }, 0) / methods.length;
+  score += methodScore * 0.4;
+  
+  // 2. Multi-source bonus (20% weight)
+  const uniqueMethods = new Set(methods);
+  const methodDiversityBonus = Math.min(uniqueMethods.size / 3, 1); // Max bonus at 3+ methods
+  const multiSourceBonus = Math.min(sources.length / 3, 1); // Max bonus at 3+ sources
+  score += (methodDiversityBonus + multiSourceBonus) * 0.1;
+  
+  // 3. Generic color penalty (15% weight)
+  const isGeneric = GENERIC_COLORS.has(hex.toUpperCase());
+  const genericPenalty = isGeneric ? -0.15 : 0;
+  score += genericPenalty;
+  
+  // 4. Brand relevance (10% weight)
+  const brandRelevance = calculateBrandRelevance(hex, brandContext);
+  score += brandRelevance * 0.1;
+  
+  // 5. Accessibility score (10% weight)
+  const rgb = hexToRgb(hex);
+  const accessibilityScore = rgb ? calculateAccessibilityScore(rgb) / 100 : 0;
+  score += accessibilityScore * 0.1;
+  
+  // 6. Industry alignment (5% weight)
+  const industryScore = calculateIndustryScore(hex, industryPrefs) / 100;
+  score += industryScore * 0.05;
+  
+  // Ensure score is between 0 and 1
+  score = Math.max(0, Math.min(1, score));
+  
+  return {
+    hex,
+    score,
+    methods,
+    frequency,
+    brandRelevance: brandRelevance * 100,
+    accessibility: accessibilityScore * 100,
+    industry: industryScore,
+    sources
+  };
+}
+
+// Calculate brand relevance based on context
+function calculateBrandRelevance(hex: string, brandContext: any): number {
+  let relevance = 0.5; // Base relevance
+  
+  const hsl = hexToHsl(hex);
+  const family = getColorFamily(hex);
+  
+  // Boost for colors with good saturation and lightness for brand use
+  if (hsl.s > 30 && hsl.l > 15 && hsl.l < 85) {
+    relevance += 0.2;
+  }
+  
+  // Boost for non-neutral colors
+  if (!['white', 'black', 'gray', 'light_gray', 'dark_gray'].includes(family)) {
+    relevance += 0.15;
+  }
+  
+  // Check if color appears in brand-specific contexts
+  if (brandContext.inLogo) relevance += 0.3;
+  if (brandContext.inHeader) relevance += 0.25;
+  if (brandContext.inNavigation) relevance += 0.2;
+  if (brandContext.inCTA) relevance += 0.25;
+  if (brandContext.inBrandElements) relevance += 0.2;
+  
+  return Math.max(0, Math.min(1, relevance));
+}
+
+// Enhanced color extraction with scoring
+interface ExtractedColor {
+  hex: string;
+  method: ColorExtractionMethod;
+  context: string;
+  element?: string;
+  frequency?: number;
+}
+
+function extractColorsWithScoring(
+  css: string,
+  html: string,
+  visionColors: string[] = [],
+  industryPrefs: any = {},
+  brandContext: any = {}
+): ColorScore[] {
+  const extractedColors: ExtractedColor[] = [];
+  
+  // 1. Vision AI colors (highest priority)
+  visionColors.forEach(color => {
+    extractedColors.push({
+      hex: color,
+      method: ColorExtractionMethod.VISION_AI,
+      context: 'vision_analysis',
+      frequency: 1
+    });
+  });
+  
+  // 2. Brand-specific CSS elements
+  const brandElementColors = extractBrandElementColors(css, html);
+  brandElementColors.forEach(({ color, element }) => {
+    extractedColors.push({
+      hex: color,
+      method: ColorExtractionMethod.CSS_BRAND_ELEMENTS,
+      context: 'brand_element',
+      element,
+      frequency: 1
+    });
+  });
+  
+  // 3. CSS Variables
+  const cssVariableColors = extractCSSVariableColors(css);
+  cssVariableColors.forEach(color => {
+    extractedColors.push({
+      hex: color,
+      method: ColorExtractionMethod.CSS_VARIABLES,
+      context: 'css_variable',
+      frequency: 1
+    });
+  });
+  
+  // 4. HTML inline styles
+  const inlineColors = extractInlineStyleColors(html);
+  inlineColors.forEach(color => {
+    extractedColors.push({
+      hex: color,
+      method: ColorExtractionMethod.HTML_INLINE,
+      context: 'inline_style',
+      frequency: 1
+    });
+  });
+  
+  // 5. Gradient analysis
+  const gradientColors = extractGradientColors(css);
+  gradientColors.forEach(color => {
+    extractedColors.push({
+      hex: color,
+      method: ColorExtractionMethod.GRADIENT_ANALYSIS,
+      context: 'gradient',
+      frequency: 1
+    });
+  });
+  
+  // 6. Generic CSS colors
+  const genericColors = extractGenericCSSColors(css);
+  genericColors.forEach(color => {
+    extractedColors.push({
+      hex: color,
+      method: ColorExtractionMethod.GENERIC_CSS,
+      context: 'generic_css',
+      frequency: 1
+    });
+  });
+  
+  // Group colors by hex value and calculate scores
+  const colorGroups = new Map<string, {
+    methods: ColorExtractionMethod[],
+    sources: string[],
+    contexts: string[],
+    frequency: number
+  }>();
+  
+  extractedColors.forEach(({ hex, method, context, element }) => {
+    const normalizedHex = hex.toUpperCase();
+    if (!colorGroups.has(normalizedHex)) {
+      colorGroups.set(normalizedHex, {
+        methods: [],
+        sources: [],
+        contexts: [],
+        frequency: 0
+      });
+    }
+    
+    const group = colorGroups.get(normalizedHex)!;
+    group.methods.push(method);
+    group.sources.push(context);
+    group.contexts.push(element || context);
+    group.frequency += 1;
+  });
+  
+  // Calculate scores for each color
+  const colorScores: ColorScore[] = [];
+  colorGroups.forEach((group, hex) => {
+    const score = calculateColorScore(
+      hex,
+      group.methods,
+      group.frequency,
+      brandContext,
+      industryPrefs,
+      group.sources
+    );
+    colorScores.push(score);
+  });
+  
+  // Sort by score (highest first)
+  return colorScores.sort((a, b) => b.score - a.score);
+}
+
+// Extract colors from brand-specific CSS elements
+function extractBrandElementColors(css: string, html: string): { color: string; element: string }[] {
+  const colors: { color: string; element: string }[] = [];
+  
+  const brandSelectors = [
+    { pattern: /\.logo[^{]*\{[^}]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})/g, element: 'logo' },
+    { pattern: /\.header[^{]*\{[^}]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})/g, element: 'header' },
+    { pattern: /\.nav[^{]*\{[^}]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})/g, element: 'navigation' },
+    { pattern: /\.brand[^{]*\{[^}]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})/g, element: 'brand' },
+    { pattern: /\.btn-primary[^{]*\{[^}]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})/g, element: 'primary_button' },
+    { pattern: /\.cta[^{]*\{[^}]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})/g, element: 'cta' }
+  ];
+  
+  brandSelectors.forEach(({ pattern, element }) => {
+    let match;
+    while ((match = pattern.exec(css)) !== null) {
+      colors.push({ color: match[1], element });
+    }
+  });
+  
+  return colors;
+}
+
+// Extract CSS variable colors
+function extractCSSVariableColors(css: string): string[] {
+  const colors: string[] = [];
+  const variablePattern = /--[a-zA-Z0-9-]*(?:color|primary|secondary|accent|brand)[a-zA-Z0-9-]*:\s*(#[0-9a-fA-F]{6})/gi;
+  
+  let match;
+  while ((match = variablePattern.exec(css)) !== null) {
+    colors.push(match[1]);
+  }
+  
+  return colors;
+}
+
+// Extract inline style colors
+function extractInlineStyleColors(html: string): string[] {
+  const colors: string[] = [];
+  const inlinePattern = /style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi;
+  
+  let match;
+  while ((match = inlinePattern.exec(html)) !== null) {
+    colors.push(match[1]);
+  }
+  
+  return colors;
+}
+
+// Extract gradient colors
+function extractGradientColors(css: string): string[] {
+  const colors: string[] = [];
+  const gradients = detectGradients(css);
+  
+  gradients.forEach(gradient => {
+    const gradientColors = extractColorsFromGradients([gradient]);
+    colors.push(...gradientColors);
+  });
+  
+  return colors;
+}
+
+// Extract generic CSS colors (lower priority)
+function extractGenericCSSColors(css: string): string[] {
+  const colors: string[] = [];
+  const genericPattern = /(?:background-color|color):\s*(#[0-9a-fA-F]{6})/gi;
+  
+  let match;
+  while ((match = genericPattern.exec(css)) !== null) {
+    colors.push(match[1]);
+  }
+  
+  return colors;
+}
+
+// ============================================================================
 // SCREENSHOT GENERATION UTILITIES
 // ============================================================================
 
