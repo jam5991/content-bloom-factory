@@ -3181,27 +3181,6 @@ function combineExtractionResults(vision: ExtractedBrandInfo | null, html: Extra
   if (html && !vision) return html;
   if (!vision && !html) {
     return null; // Let caller handle graceful degradation
-      name: 'Brand Name',
-      primary_color: '#e74c3c',
-      secondary_color: '#ffffff',
-      accent_color: '#3498db',
-      font_family: 'Arial',
-      logo_url: undefined,
-      personality: {
-        primary_trait: 'Professional',
-        secondary_traits: ['Reliable', 'Trustworthy'],
-        industry_context: 'Professional Services',
-        design_approach: 'Corporate'
-      },
-      confidence_scores: {
-        name: 0.3,
-        colors: 0.3,
-        typography: 0.3,
-        logo: 0.2,
-        personality: 0.3,
-        overall: 0.28
-      }
-    };
   }
   
   // Both sources available - combine intelligently
