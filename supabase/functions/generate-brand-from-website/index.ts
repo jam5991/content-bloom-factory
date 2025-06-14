@@ -282,7 +282,13 @@ serve(async (req) => {
         url: url,
         formats: ['html', 'markdown'],
         includeTags: ['title', 'h1', 'h2', 'style', 'link', 'img'],
-        excludeTags: ['script', 'noscript']
+        excludeTags: ['script', 'noscript'],
+        screenshot: true,
+        screenshotOptions: {
+          type: 'jpeg',
+          quality: 85,
+          fullPage: false
+        }
       })
     });
 
