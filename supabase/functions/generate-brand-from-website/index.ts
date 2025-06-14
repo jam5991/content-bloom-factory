@@ -3156,14 +3156,15 @@ async function extractBrandInfoHybrid(screenshotUrl: string | null, html: string
   }
   
   // Combine results using smart merging logic or fallback gracefully
-  let finalResult = null;
+  let finalResult: ExtractedBrandInfo;
   
   if (visionResult || htmlResult) {
-    finalResult = combineExtractionResults(visionResult, htmlResult);
+    const combinedResult = combineExtractionResults(visionResult, htmlResult);
+    finalResult = combinedResult || getIntelligentFallback(url);
     console.log('Hybrid extraction successful:', finalResult);
     
     // Cache successful extractions for future use
-    if (finalResult) {
+    if (combinedResult) {
       await cachePalette(domain, finalResult);
     }
   } else {
