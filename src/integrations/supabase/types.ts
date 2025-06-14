@@ -90,6 +90,13 @@ export type Database = {
             referencedRelation: "brand_assets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_brand_color_corrections_brand_asset"
+            columns: ["brand_asset_id"]
+            isOneToOne: false
+            referencedRelation: "brand_assets"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brand_extraction_history: {
@@ -205,6 +212,13 @@ export type Database = {
             referencedRelation: "chat_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_chat_messages_chat_session"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       chat_sessions: {
@@ -245,6 +259,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_chat_sessions_social_media_account"
+            columns: ["social_media_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_media_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -292,6 +313,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_content_approvals_content_generation"
+            columns: ["content_generation_id"]
+            isOneToOne: false
+            referencedRelation: "content_generations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       content_generation_media: {
@@ -323,6 +351,20 @@ export type Database = {
           },
           {
             foreignKeyName: "content_generation_media_media_file_id_fkey"
+            columns: ["media_file_id"]
+            isOneToOne: false
+            referencedRelation: "media_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_content_generation_media_content_generation"
+            columns: ["content_generation_id"]
+            isOneToOne: false
+            referencedRelation: "content_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_content_generation_media_media_file"
             columns: ["media_file_id"]
             isOneToOne: false
             referencedRelation: "media_files"
@@ -404,6 +446,20 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_content_generations_chat_session"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_content_generations_social_media_account"
+            columns: ["social_media_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_media_accounts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       domain_extraction_patterns: {
@@ -474,6 +530,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_media_files_campaign"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "media_files_campaign_id_fkey"
             columns: ["campaign_id"]
