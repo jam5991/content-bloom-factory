@@ -393,7 +393,7 @@ async function extractBrandInfoWithVision(screenshotUrl: string): Promise<Extrac
 
   console.log('Screenshot URL for Vision API:', screenshotUrl);
 
-  const enhancedPrompt = `You are an expert brand analyst and visual designer with 15+ years of experience in brand identity extraction and color theory. Analyze this website screenshot with meticulous attention to brand elements.
+  const enhancedPrompt = `You are an expert brand analyst and visual designer with 15+ years of experience in brand identity extraction, color theory, typography, and logo analysis. Analyze this website screenshot with meticulous attention to brand elements.
 
 CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure:
 
@@ -422,34 +422,77 @@ DETAILED ANALYSIS FRAMEWORK:
    - Look for: Call-to-action buttons, links, highlights, badges
    - Consider: Colors that draw attention and guide user actions
 
-🔤 TYPOGRAPHY ANALYSIS:
-- Identify custom fonts vs system fonts
-- Look for distinctive letterforms, weights, spacing
-- Note: Sans-serif (modern), Serif (traditional), Script (decorative)
-- Recognize popular web fonts: Roboto, Open Sans, Montserrat, Poppins, etc.
+🔤 ADVANCED TYPOGRAPHY ANALYSIS:
+EXAMINE WITH EXTREME PRECISION:
+- Font weight variations (light, regular, medium, bold, black)
+- Character spacing and letter proportions
+- Distinctive letterforms (especially 'a', 'g', 'R', 'Q')
+- X-height ratios and ascender/descender proportions
+- Stroke contrast and terminal styles
+
+FONT IDENTIFICATION PRIORITIES:
+1. CUSTOM BRAND FONTS: Look for unique, proprietary typefaces
+2. PREMIUM WEB FONTS: Identify paid font services (Typekit, Google Fonts Premium)
+3. POPULAR WEB FONTS: Recognize common choices:
+   - Sans-serif: Helvetica, Arial, Roboto, Open Sans, Lato, Montserrat, Poppins, Inter, Work Sans, Source Sans Pro
+   - Serif: Times, Georgia, Playfair Display, Merriweather, Lora, Crimson Text
+   - Display: Oswald, Bebas Neue, Raleway, Nunito, Quicksand
+4. SYSTEM FONTS: Default browser fonts as last resort
+
+VISUAL FONT ANALYSIS TECHNIQUE:
+- Compare letterforms against known font characteristics
+- Analyze spacing patterns and geometric proportions
+- Look for distinctive features like rounded corners, angled cuts, or unique character designs
+- Consider font pairing patterns (display + body text combinations)
 
 🏷️ BRAND NAME EXTRACTION:
 - Prioritize: Logo text, main navigation brand name, page titles
 - Ignore: Taglines, descriptive text, marketing copy
 - Consider: Shortest, most prominent brand identifier
 
-🖼️ LOGO IDENTIFICATION:
-- Only include if clearly visible logo image in screenshot
-- Must be actual logo file URL, not placeholder or icon
+🖼️ ADVANCED LOGO DETECTION:
+LOGO IDENTIFICATION PRIORITIES:
+1. VECTOR LOGOS: SVG files in navigation or header areas
+2. HIGH-RES IMAGES: PNG/JPG logos with transparent backgrounds
+3. FAVICON ANALYSIS: Look for high-quality favicon that could be logo
+4. BRAND MARK DETECTION: Identify symbolic logos vs wordmarks
+
+LOGO URL EXTRACTION METHOD:
+- Scan HTML for logo-related attributes: alt="logo", class="logo", id="logo"
+- Look for image files with "logo", "brand", "mark" in filename
+- Check for SVG elements that form logo graphics
+- Identify retina/high-DPI logo variants (@2x, @3x suffixes)
+- Prioritize logos in header, navigation, or footer areas
+
+LOGO QUALITY ASSESSMENT:
+- Prefer vector formats (SVG) over raster (PNG/JPG)
+- Choose higher resolution versions when available
+- Select main logo over simplified mobile versions
+- Avoid social media icons or generic placeholders
 
 🎯 BRAND CONTEXT AWARENESS:
 Consider the industry/sector suggested by design:
-- Tech: Clean, minimal, blue/gray palettes
-- Finance: Conservative, blue/green, serif fonts  
-- Creative: Bold colors, unique typography
-- E-commerce: High contrast, action-oriented
-- Healthcare: Trust colors (blue/green), clean fonts
+- Tech: Clean, minimal, blue/gray palettes, modern sans-serif
+- Finance: Conservative, blue/green, serif or refined sans-serif
+- Creative: Bold colors, unique typography, custom fonts
+- E-commerce: High contrast, action-oriented, readable fonts
+- Healthcare: Trust colors (blue/green), clean, accessible fonts
+- Fashion: Elegant typography, high contrast, premium feel
+- Food: Warm colors, approachable fonts, appetizing visuals
 
 QUALITY STANDARDS:
 ✅ All hex codes must be exactly 6 digits: #FF5733
-✅ Font names should be real, recognizable families
+✅ Font names should be real, recognizable families with proper capitalization
 ✅ Brand name should be concise (2-4 words max)
-✅ Logo URL must be valid if provided
+✅ Logo URL must be actual image file URL, not page URL
+✅ Prefer specific font names over generic categories
+
+ENHANCED VISUAL ANALYSIS:
+- Examine logo placement, size, and visual hierarchy
+- Analyze font rendering quality and anti-aliasing
+- Consider responsive design font choices
+- Look for consistent brand application across elements
+- Identify premium vs budget design choices
 
 Focus on intentional brand design choices that distinguish this company from generic websites. Prioritize elements that appear deliberately chosen for brand identity over standard web design patterns.`;
 
