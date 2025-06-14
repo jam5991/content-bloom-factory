@@ -1,11 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
 interface ExtractedBrandInfo {
   name: string;
@@ -16,12 +14,25 @@ interface ExtractedBrandInfo {
   logo_url?: string;
 }
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// ============================================================================
+// COLOR EXTRACTION UTILITIES
+// ============================================================================
+
 async function extractColorsFromCSS(css: string, html: string): Promise<{ primary: string; secondary: string; accent: string }> {
   // Extract hex colors from CSS and HTML
   const hexColors = [...(css.match(/#[0-9a-fA-F]{6}/g) || []), ...(html.match(/#[0-9a-fA-F]{6}/g) || [])];
   const rgbColors = [...(css.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || []), ...(html.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [])];
   
-  // Also look for CSS custom properties and color keywords
+  // Extract CSS custom properties and color keywords
   const cssVariables = css.match(/--[a-zA-Z0-9-]*:\s*#[0-9a-fA-F]{6}/g) || [];
   const variableColors = cssVariables.map(v => v.match(/#[0-9a-fA-F]{6}/)?.[0]).filter(Boolean);
   
@@ -37,7 +48,7 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     return '#000000';
   });
   
-  // Look for specific brand color patterns in class names and styles
+  // Extract brand color patterns from styles
   const brandColorPatterns = [
     /background-color:\s*(#[0-9a-fA-F]{6})/g,
     /color:\s*(#[0-9a-fA-F]{6})/g,
@@ -55,20 +66,20 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   
   const allColors = [...new Set([...hexColors, ...convertedColors, ...variableColors, ...patternColors])];
   
-  // Enhanced filtering - remove common colors and very similar grays
+  // Filter out common colors and grays
   const filteredColors = allColors.filter(color => {
     const cleanColor = color.toUpperCase();
-    // Remove pure black, white, and gray variations
     if (cleanColor === '#000000' || cleanColor === '#FFFFFF') return false;
+    
     // Remove grays (where all RGB components are similar)
     const r = parseInt(cleanColor.slice(1, 3), 16);
     const g = parseInt(cleanColor.slice(3, 5), 16);
     const b = parseInt(cleanColor.slice(5, 7), 16);
     const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b));
-    return maxDiff > 30; // Keep colors where RGB components differ by more than 30
+    return maxDiff > 30;
   });
   
-  // Sort by color frequency or brightness for better primary selection
+  // Sort by frequency for better primary selection
   const colorFreq = new Map();
   allColors.forEach(color => {
     colorFreq.set(color, (colorFreq.get(color) || 0) + 1);
@@ -89,6 +100,10 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   };
 }
 
+// ============================================================================
+// FONT EXTRACTION UTILITIES
+// ============================================================================
+
 function extractFontsFromCSS(css: string): string {
   const fontFamilyMatches = css.match(/font-family\s*:\s*([^;]+)/gi) || [];
   const fonts = new Set<string>();
@@ -96,7 +111,6 @@ function extractFontsFromCSS(css: string): string {
   fontFamilyMatches.forEach(match => {
     const fontValue = match.split(':')[1]?.trim();
     if (fontValue) {
-      // Extract first font name, remove quotes
       const firstFont = fontValue.split(',')[0]?.trim().replace(/['"]/g, '');
       if (firstFont && !firstFont.includes('serif') && !firstFont.includes('sans-serif')) {
         fonts.add(firstFont);
@@ -107,12 +121,15 @@ function extractFontsFromCSS(css: string): string {
   return Array.from(fonts)[0] || 'Arial';
 }
 
+// ============================================================================
+// BRAND NAME EXTRACTION UTILITIES
+// ============================================================================
+
 function extractBrandName(html: string): string {
   // Try to extract from title tag
   const titleMatch = html.match(/<title[^>]*>([^<]+)</i);
   if (titleMatch) {
     let title = titleMatch[1].trim();
-    // Remove common suffixes
     title = title.replace(/\s*-\s*.+$/, '').replace(/\s*\|\s*.+$/, '');
     if (title.length > 0 && title.length < 50) {
       return title;
@@ -137,8 +154,11 @@ function extractBrandName(html: string): string {
   return 'Brand Name';
 }
 
+// ============================================================================
+// LOGO EXTRACTION UTILITIES
+// ============================================================================
+
 function extractLogoUrl(html: string, baseUrl: string): string | undefined {
-  // Try to find logo images
   const logoSelectors = [
     /src=['"]([^'"]*logo[^'"]*)['"]/i,
     /src=['"]([^'"]*brand[^'"]*)['"]/i,
@@ -163,6 +183,10 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
   return undefined;
 }
 
+// ============================================================================
+// SCREENSHOT GENERATION UTILITIES
+// ============================================================================
+
 async function generateFallbackScreenshot(url: string): Promise<string | null> {
   try {
     console.log('Attempting fallback screenshot generation for:', url);
@@ -172,7 +196,7 @@ async function generateFallbackScreenshot(url: string): Promise<string | null> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + btoa('user-id:api-key'), // This would need proper API keys
+        'Authorization': 'Basic ' + btoa('user-id:api-key'), // Would need proper API keys
       },
       body: JSON.stringify({
         html: `<iframe src="${url}" width="1200" height="800" style="border: none;"></iframe>`,
@@ -192,12 +216,11 @@ async function generateFallbackScreenshot(url: string): Promise<string | null> {
     console.error('Fallback screenshot generation failed:', error);
   }
 
-  // If htmlcsstoimage fails, try screenshot.guru as another fallback
+  // Try screenshot.guru as secondary fallback
   try {
     console.log('Trying screenshot.guru as secondary fallback');
     const fallbackUrl = `https://screenshot.guru/api/screenshot?url=${encodeURIComponent(url)}&width=1200&height=800&type=jpeg&quality=85`;
     
-    // Test if the service is available
     const testResponse = await fetch(fallbackUrl, { method: 'HEAD' });
     if (testResponse.ok) {
       console.log('Secondary fallback screenshot URL:', fallbackUrl);
@@ -211,10 +234,13 @@ async function generateFallbackScreenshot(url: string): Promise<string | null> {
   return null;
 }
 
+// ============================================================================
+// VISION API EXTRACTION
+// ============================================================================
+
 async function extractBrandInfoWithVision(screenshotUrl: string): Promise<ExtractedBrandInfo> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
-    console.error('OpenAI API key not configured');
     throw new Error('OpenAI API key not configured');
   }
 
@@ -300,6 +326,10 @@ Return only the JSON object, no other text.`;
   }
 }
 
+// ============================================================================
+// HTML PARSING EXTRACTION
+// ============================================================================
+
 async function extractBrandFromHTML(html: string, url: string): Promise<ExtractedBrandInfo> {
   console.log('Extracting brand info from HTML');
   
@@ -330,6 +360,10 @@ async function extractBrandFromHTML(html: string, url: string): Promise<Extracte
     logo_url: logoUrl
   };
 }
+
+// ============================================================================
+// MAIN REQUEST HANDLER
+// ============================================================================
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
