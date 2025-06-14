@@ -325,17 +325,56 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     });
   });
   
-  // Combine all extracted colors with priority weighting
+  // Brand element priority extraction
+  const brandPriorityColors: string[] = [];
+  const brandElementPatterns = [
+    // Header and navigation colors
+    /<header[^>]*(?:style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]|class=['"][^'"]*['"]))]/gi,
+    /<nav[^>]*(?:style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]|class=['"][^'"]*['"]))]/gi,
+    // Brand-specific elements
+    /class=['"][^'"]*(?:brand|logo|navbar|header|primary|accent)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi,
+    /id=['"][^'"]*(?:brand|logo|navbar|header|primary|accent)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi,
+    // Top-level navigation and branding
+    /<div[^>]*class=['"][^'"]*(?:nav|header|brand|top|main)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi
+  ];
+  
+  brandElementPatterns.forEach(pattern => {
+    const matches = [...html.matchAll(pattern)];
+    matches.forEach(match => {
+      if (match[1]) brandPriorityColors.push(match[1]);
+    });
+  });
+
+  // Filter out likely text/content colors (common text color patterns)
+  const contentTextColors = new Set([
+    '#000000', '#FFFFFF', '#333333', '#666666', '#999999', '#CCCCCC',
+    '#212121', '#424242', '#757575', '#BDBDBD', '#E0E0E0', '#F5F5F5',
+    '#1A1A1A', '#2C2C2C', '#4A4A4A', '#6B6B6B', '#8E8E8E', '#B1B1B1'
+  ]);
+
+  // Enhanced filtering for content vs brand colors
+  const filteredContentColors = [...hexColors, ...convertedColors, ...patternColors].filter(color => {
+    const upperColor = color.toUpperCase();
+    // Remove common text colors
+    if (contentTextColors.has(upperColor)) return false;
+    
+    // Remove colors that appear in paragraph, span, or text-heavy elements
+    const textElementPattern = new RegExp(`<(?:p|span|div|article|section)[^>]*style=['"][^'"]*color:\\s*${color.replace('#', '\\#')}[^'"]*['"]`, 'gi');
+    if (textElementPattern.test(html)) return false;
+    
+    return true;
+  });
+
+  // Combine all extracted colors with priority weighting (brand elements get highest priority)
   const allColors = [...new Set([
-    ...hexColors,
-    ...convertedColors, 
-    ...variableColors,
-    ...styleAttributeColors,
-    ...brandRelatedColors,
-    ...cssInJsColors,
-    ...svgColors,
-    ...gradientColors, 
-    ...patternColors
+    ...brandPriorityColors,     // Highest priority
+    ...brandRelatedColors,      // High priority  
+    ...cssInJsColors,          // Medium-high priority
+    ...svgColors,              // Medium priority
+    ...gradientColors,         // Medium priority
+    ...variableColors,         // Medium priority
+    ...styleAttributeColors,   // Lower priority
+    ...filteredContentColors  // Lowest priority (after content filtering)
   ])];
   
   console.log('Enhanced color extraction results:', {
