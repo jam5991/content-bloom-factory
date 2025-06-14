@@ -210,7 +210,7 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   
   // Extract colors from style attributes in HTML elements
   const styleAttributeColors: string[] = [];
-  const styleAttrMatches = html.match(/style=['"][^'"]*['"/g) || [];
+  const styleAttrMatches = html.match(/style=['"][^'"]*['"]/g) || [];
   styleAttrMatches.forEach(styleAttr => {
     const hexInStyle = styleAttr.match(/#[0-9a-fA-F]{6}/g) || [];
     const rgbInStyle = styleAttr.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [];
