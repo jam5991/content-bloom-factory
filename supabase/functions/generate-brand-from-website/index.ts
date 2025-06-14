@@ -532,16 +532,113 @@ function extractLogoUrl(html: string, baseUrl: string): string | undefined {
 // SCREENSHOT GENERATION UTILITIES
 // ============================================================================
 
-async function generateFallbackScreenshot(url: string): Promise<string | null> {
+interface ScreenshotProvider {
+  name: string;
+  generateScreenshot: (url: string) => Promise<string | null>;
+}
+
+// ScreenshotAPI.net provider - most reliable
+async function screenshotApiProvider(url: string): Promise<string | null> {
   try {
-    console.log('Attempting fallback screenshot generation for:', url);
+    console.log('Attempting ScreenshotAPI.net for:', url);
     
-    // Use htmlcsstoimage.com API as fallback
+    const apiUrl = `https://shot.screenshotapi.net/screenshot?token=N8QJ06J-RXBW5QM-HWBJ3T9-21G8M4P&url=${encodeURIComponent(url)}&width=1200&height=800&output=json&file_type=jpeg&quality=80&no_ads=true&no_cookie_banners=true&wait_for_event=load`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.screenshot) {
+        console.log('ScreenshotAPI.net screenshot generated:', data.screenshot);
+        return data.screenshot;
+      }
+    }
+  } catch (error) {
+    console.error('ScreenshotAPI.net failed:', error);
+  }
+  return null;
+}
+
+// ScrapeOwl provider
+async function scrapeOwlProvider(url: string): Promise<string | null> {
+  try {
+    console.log('Attempting ScrapeOwl for:', url);
+    
+    const apiUrl = `https://api.scrapeowl.com/v1/screenshot?api_key=YOUR_API_KEY&url=${encodeURIComponent(url)}&viewport_width=1200&viewport_height=800&format=jpeg&quality=80&wait_for=load&block_ads=true&block_resources=font,stylesheet`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.screenshot_url) {
+        console.log('ScrapeOwl screenshot generated:', data.screenshot_url);
+        return data.screenshot_url;
+      }
+    }
+  } catch (error) {
+    console.error('ScrapeOwl failed:', error);
+  }
+  return null;
+}
+
+// Puppeteer-based screenshot service
+async function puppeteerProvider(url: string): Promise<string | null> {
+  try {
+    console.log('Attempting Puppeteer-based service for:', url);
+    
+    // Using BrowserBase or similar Puppeteer service
+    const apiUrl = 'https://api.browserbase.com/v1/screenshot';
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer YOUR_BROWSERBASE_API_KEY'
+      },
+      body: JSON.stringify({
+        url: url,
+        viewport: { width: 1200, height: 800 },
+        format: 'jpeg',
+        quality: 80,
+        waitUntil: 'networkidle0',
+        blockAds: true,
+        blockCookieBanners: true
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.screenshotUrl) {
+        console.log('Puppeteer service screenshot generated:', data.screenshotUrl);
+        return data.screenshotUrl;
+      }
+    }
+  } catch (error) {
+    console.error('Puppeteer service failed:', error);
+  }
+  return null;
+}
+
+// HTMLCSSToImage provider (existing fallback)
+async function htmlCssToImageProvider(url: string): Promise<string | null> {
+  try {
+    console.log('Attempting HTMLCSSToImage for:', url);
+    
     const response = await fetch('https://hcti.io/v1/image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + btoa('user-id:api-key'), // Would need proper API keys
+        'Authorization': 'Basic ' + btoa('user-id:api-key'),
       },
       body: JSON.stringify({
         html: `<iframe src="${url}" width="1200" height="800" style="border: none;"></iframe>`,
@@ -554,28 +651,67 @@ async function generateFallbackScreenshot(url: string): Promise<string | null> {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('Fallback screenshot generated:', data.url);
+      console.log('HTMLCSSToImage screenshot generated:', data.url);
       return data.url;
     }
   } catch (error) {
-    console.error('Fallback screenshot generation failed:', error);
+    console.error('HTMLCSSToImage failed:', error);
   }
+  return null;
+}
 
-  // Try screenshot.guru as secondary fallback
+// Screenshot.guru provider
+async function screenshotGuruProvider(url: string): Promise<string | null> {
   try {
-    console.log('Trying screenshot.guru as secondary fallback');
+    console.log('Attempting Screenshot.guru for:', url);
     const fallbackUrl = `https://screenshot.guru/api/screenshot?url=${encodeURIComponent(url)}&width=1200&height=800&type=jpeg&quality=85`;
     
     const testResponse = await fetch(fallbackUrl, { method: 'HEAD' });
     if (testResponse.ok) {
-      console.log('Secondary fallback screenshot URL:', fallbackUrl);
+      console.log('Screenshot.guru screenshot URL:', fallbackUrl);
       return fallbackUrl;
     }
   } catch (error) {
-    console.error('Secondary fallback also failed:', error);
+    console.error('Screenshot.guru failed:', error);
+  }
+  return null;
+}
+
+// Main screenshot generation with comprehensive fallback chain
+async function generateFallbackScreenshot(url: string): Promise<string | null> {
+  console.log('Starting screenshot generation with multi-provider fallback chain for:', url);
+  
+  // Define provider chain in order of reliability
+  const providers: ScreenshotProvider[] = [
+    { name: 'ScreenshotAPI.net', generateScreenshot: screenshotApiProvider },
+    { name: 'Puppeteer Service', generateScreenshot: puppeteerProvider },
+    { name: 'ScrapeOwl', generateScreenshot: scrapeOwlProvider },
+    { name: 'HTMLCSSToImage', generateScreenshot: htmlCssToImageProvider },
+    { name: 'Screenshot.guru', generateScreenshot: screenshotGuruProvider }
+  ];
+
+  // Try each provider in sequence until one succeeds
+  for (const provider of providers) {
+    try {
+      console.log(`Attempting ${provider.name}...`);
+      const screenshotUrl = await provider.generateScreenshot(url);
+      
+      if (screenshotUrl) {
+        console.log(`✓ ${provider.name} succeeded:`, screenshotUrl);
+        return screenshotUrl;
+      } else {
+        console.log(`✗ ${provider.name} returned null`);
+      }
+    } catch (error) {
+      console.error(`✗ ${provider.name} error:`, error);
+      continue;
+    }
+    
+    // Small delay between attempts to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  console.log('All screenshot fallbacks failed');
+  console.log('All screenshot providers failed in fallback chain');
   return null;
 }
 
