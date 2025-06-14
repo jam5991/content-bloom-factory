@@ -39,7 +39,7 @@ const Dashboard = () => {
             topic,
             status,
             created_at,
-            social_media_accounts!inner(
+            social_media_accounts!content_generations_social_media_account_id_fkey(
               platform
             )
           `)

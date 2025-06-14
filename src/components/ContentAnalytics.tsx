@@ -58,7 +58,7 @@ export const ContentAnalytics = () => {
         .from('content_generations')
         .select(`
           *,
-          social_media_accounts(platform)
+          social_media_accounts!content_generations_social_media_account_id_fkey(platform)
         `)
         .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString())

@@ -666,8 +666,8 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   const brandPriorityColors: string[] = [];
   const brandElementPatterns = [
     // Header and navigation colors
-    /<header[^>]*(?:style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]|class=['"][^'"]*['"]))]/gi,
-    /<nav[^>]*(?:style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]|class=['"][^'"]*['"]))]/gi,
+    /<header[^>]*(?:style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]|class=['"][^'"]*['"])/gi,
+    /<nav[^>]*(?:style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]|class=['"][^'"]*['"])/gi,
     // Brand-specific elements
     /class=['"][^'"]*(?:brand|logo|navbar|header|primary|accent)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi,
     /id=['"][^'"]*(?:brand|logo|navbar|header|primary|accent)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi,
