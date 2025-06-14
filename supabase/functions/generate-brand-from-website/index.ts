@@ -181,9 +181,111 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   const hexColors = [...(css.match(/#[0-9a-fA-F]{6}/g) || []), ...(html.match(/#[0-9a-fA-F]{6}/g) || [])];
   const rgbColors = [...(css.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || []), ...(html.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [])];
   
-  // Extract CSS custom properties and color keywords
-  const cssVariables = css.match(/--[a-zA-Z0-9-]*:\s*#[0-9a-fA-F]{6}/g) || [];
-  const variableColors = cssVariables.map(v => v.match(/#[0-9a-fA-F]{6}/)?.[0]).filter(Boolean);
+  // Enhanced CSS custom properties extraction (CSS variables)
+  const cssVariablePatterns = [
+    /--[a-zA-Z0-9-]*:\s*(#[0-9a-fA-F]{6})/g,
+    /--[a-zA-Z0-9-]*:\s*(rgb\([^)]+\))/g,
+    /--[a-zA-Z0-9-]*:\s*(rgba\([^)]+\))/g,
+    /--[a-zA-Z0-9-]*:\s*(hsl\([^)]+\))/g
+  ];
+  
+  const variableColors: string[] = [];
+  cssVariablePatterns.forEach(pattern => {
+    const matches = [...css.matchAll(pattern)];
+    matches.forEach(match => {
+      const colorValue = match[1];
+      if (colorValue?.startsWith('#')) {
+        variableColors.push(colorValue);
+      } else if (colorValue?.startsWith('rgb')) {
+        const rgbMatch = colorValue.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+        if (rgbMatch) {
+          const r = parseInt(rgbMatch[1]).toString(16).padStart(2, '0');
+          const g = parseInt(rgbMatch[2]).toString(16).padStart(2, '0');
+          const b = parseInt(rgbMatch[3]).toString(16).padStart(2, '0');
+          variableColors.push(`#${r}${g}${b}`);
+        }
+      }
+    });
+  });
+  
+  // Extract colors from style attributes in HTML elements
+  const styleAttributeColors: string[] = [];
+  const styleAttrMatches = html.match(/style=['"][^'"]*['"/g) || [];
+  styleAttrMatches.forEach(styleAttr => {
+    const hexInStyle = styleAttr.match(/#[0-9a-fA-F]{6}/g) || [];
+    const rgbInStyle = styleAttr.match(/rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g) || [];
+    
+    styleAttributeColors.push(...hexInStyle);
+    rgbInStyle.forEach(rgb => {
+      const values = rgb.match(/\d+/g);
+      if (values && values.length === 3) {
+        const r = parseInt(values[0]).toString(16).padStart(2, '0');
+        const g = parseInt(values[1]).toString(16).padStart(2, '0');
+        const b = parseInt(values[2]).toString(16).padStart(2, '0');
+        styleAttributeColors.push(`#${r}${g}${b}`);
+      }
+    });
+  });
+  
+  // Extract colors from brand-related class and id attributes
+  const brandRelatedColors: string[] = [];
+  const brandSelectors = [
+    /class=['"][^'"]*(?:brand|logo|header|nav|primary|accent|theme)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi,
+    /id=['"][^'"]*(?:brand|logo|header|nav|primary|accent|theme)[^'"]*['"][^>]*style=['"][^'"]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^'"]*['"]/gi
+  ];
+  
+  brandSelectors.forEach(pattern => {
+    const matches = [...html.matchAll(pattern)];
+    matches.forEach(match => {
+      if (match[1]) brandRelatedColors.push(match[1]);
+    });
+  });
+  
+  // CSS-in-JS and styled-components patterns
+  const cssInJsColors: string[] = [];
+  const cssInJsPatterns = [
+    /(?:backgroundColor|color):\s*['"`](#[0-9a-fA-F]{6})['"`]/g,
+    /(?:backgroundColor|color):\s*['"`](rgb\([^)]+\))['"`]/g,
+    /styled\.[a-zA-Z]+`[^`]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^`]*`/g,
+    /css`[^`]*(?:background-color|color):\s*(#[0-9a-fA-F]{6})[^`]*`/g
+  ];
+  
+  cssInJsPatterns.forEach(pattern => {
+    const matches = [...html.matchAll(pattern), ...css.matchAll(pattern)];
+    matches.forEach(match => {
+      const color = match[1];
+      if (color?.startsWith('#')) {
+        cssInJsColors.push(color);
+      } else if (color?.startsWith('rgb')) {
+        const rgbMatch = color.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+        if (rgbMatch) {
+          const r = parseInt(rgbMatch[1]).toString(16).padStart(2, '0');
+          const g = parseInt(rgbMatch[2]).toString(16).padStart(2, '0');
+          const b = parseInt(rgbMatch[3]).toString(16).padStart(2, '0');
+          cssInJsColors.push(`#${r}${g}${b}`);
+        }
+      }
+    });
+  });
+  
+  // SVG colors and inline SVG styles
+  const svgColors: string[] = [];
+  const svgPatterns = [
+    /<svg[^>]*fill=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/gi,
+    /<svg[^>]*stroke=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/gi,
+    /<(?:path|rect|circle|ellipse|polygon)[^>]*fill=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/gi,
+    /<(?:path|rect|circle|ellipse|polygon)[^>]*stroke=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/gi,
+    /<style[^>]*>[^<]*\.svg[^{]*{[^}]*(?:fill|stroke):\s*(#[0-9a-fA-F]{6})[^}]*}/gi
+  ];
+  
+  svgPatterns.forEach(pattern => {
+    const matches = [...html.matchAll(pattern)];
+    matches.forEach(match => {
+      const colorValue = match[1];
+      const hexMatch = colorValue?.match(/#[0-9a-fA-F]{6}/);
+      if (hexMatch) svgColors.push(hexMatch[0]);
+    });
+  });
   
   // Detect and extract colors from gradients
   const gradients = detectGradients(css);
@@ -191,7 +293,7 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
   console.log('Detected gradients:', gradients.length);
   console.log('Colors from gradients:', gradientColors);
   
-  // Convert RGB to hex
+  // Convert RGB to hex for legacy patterns
   const convertedColors = rgbColors.map(rgb => {
     const values = rgb.match(/\d+/g);
     if (values && values.length === 3) {
@@ -203,12 +305,15 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     return '#000000';
   });
   
-  // Extract brand color patterns from styles
+  // Extract enhanced brand color patterns from styles
   const brandColorPatterns = [
     /background-color:\s*(#[0-9a-fA-F]{6})/g,
     /color:\s*(#[0-9a-fA-F]{6})/g,
     /fill=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g,
-    /stroke=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g
+    /stroke=['"]([^'"]*#[0-9a-fA-F]{6}[^'"]*)['"]/g,
+    /border-color:\s*(#[0-9a-fA-F]{6})/g,
+    /box-shadow:[^;]*\s(#[0-9a-fA-F]{6})/g,
+    /text-shadow:[^;]*\s(#[0-9a-fA-F]{6})/g
   ];
   
   const patternColors: string[] = [];
@@ -220,7 +325,29 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     });
   });
   
-  const allColors = [...new Set([...hexColors, ...convertedColors, ...variableColors, ...gradientColors, ...patternColors])];
+  // Combine all extracted colors with priority weighting
+  const allColors = [...new Set([
+    ...hexColors,
+    ...convertedColors, 
+    ...variableColors,
+    ...styleAttributeColors,
+    ...brandRelatedColors,
+    ...cssInJsColors,
+    ...svgColors,
+    ...gradientColors, 
+    ...patternColors
+  ])];
+  
+  console.log('Enhanced color extraction results:', {
+    hexColors: hexColors.length,
+    variableColors: variableColors.length,
+    styleAttributeColors: styleAttributeColors.length,
+    brandRelatedColors: brandRelatedColors.length,
+    cssInJsColors: cssInJsColors.length,
+    svgColors: svgColors.length,
+    gradientColors: gradientColors.length,
+    totalUnique: allColors.length
+  });
   
   // Filter out common colors and grays
   const filteredColors = allColors.filter(color => {
