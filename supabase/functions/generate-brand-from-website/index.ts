@@ -349,17 +349,31 @@ async function extractColorsFromCSS(css: string, html: string): Promise<{ primar
     totalUnique: allColors.length
   });
   
-  // Filter out common colors and grays
+  // Enhanced gray detection and color filtering
   const filteredColors = allColors.filter(color => {
     const cleanColor = color.toUpperCase();
     if (cleanColor === '#000000' || cleanColor === '#FFFFFF') return false;
     
-    // Remove grays (where all RGB components are similar)
+    // Enhanced gray detection using multiple criteria
     const r = parseInt(cleanColor.slice(1, 3), 16);
     const g = parseInt(cleanColor.slice(3, 5), 16);
     const b = parseInt(cleanColor.slice(5, 7), 16);
+    
+    // Check RGB similarity (traditional method)
     const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b));
-    return maxDiff > 30;
+    if (maxDiff <= 15) return false; // Strict gray detection
+    
+    // Check HSL saturation for desaturated colors
+    const hsl = hexToHsl(cleanColor);
+    if (hsl.s < 20) return false; // Remove low saturation colors
+    
+    // Remove very light colors (potential backgrounds)
+    if (hsl.l > 85) return false;
+    
+    // Remove very dark colors (potential text colors)
+    if (hsl.l < 15) return false;
+    
+    return true;
   });
   
   // Sort by frequency and color vibrancy
