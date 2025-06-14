@@ -2960,48 +2960,227 @@ async function extractBrandFromHTML(html: string, url: string): Promise<Extracte
 }
 
 // ============================================================================
+// CACHING & GRACEFUL DEGRADATION
+// ============================================================================
+
+// Check cache first for common domains
+async function getCachedPalette(domain: string): Promise<ExtractedBrandInfo | null> {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('Supabase credentials not available for caching');
+      return null;
+    }
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/domain_extraction_patterns?domain_pattern=eq.${domain}&select=*`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.length > 0 && data[0].extraction_rules?.cached_palette) {
+        console.log(`Using cached palette for domain: ${domain}`);
+        return data[0].extraction_rules.cached_palette;
+      }
+    }
+  } catch (error) {
+    console.log(`No cache found for domain: ${domain}`, error.message);
+  }
+  
+  return null;
+}
+
+// Cache successful extractions for future use
+async function cachePalette(domain: string, result: ExtractedBrandInfo): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('Supabase credentials not available for caching');
+      return;
+    }
+
+    const cacheData = {
+      domain_pattern: domain,
+      extraction_rules: {
+        cached_palette: result,
+        cached_at: new Date().toISOString()
+      },
+      success_rate: 1.0,
+      usage_count: 1
+    };
+
+    await fetch(`${supabaseUrl}/rest/v1/domain_extraction_patterns`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(cacheData)
+    });
+    
+    console.log(`Cached palette for domain: ${domain}`);
+  } catch (error) {
+    console.log('Failed to cache palette:', error.message);
+  }
+}
+
+// Graceful degradation fallback with industry-specific defaults
+function getIntelligentFallback(url: string): ExtractedBrandInfo {
+  console.log('Using intelligent fallback for brand extraction');
+  
+  const domain = new URL(url).hostname.toLowerCase();
+  
+  // Industry-specific intelligent defaults
+  let industryColors = { primary: '#2563eb', secondary: '#f8fafc', accent: '#0ea5e9' }; // Default tech blue
+  let industryName = 'Professional Service';
+  let industryPersonality = {
+    primary_trait: 'professional',
+    secondary_traits: ['reliable', 'modern'],
+    industry_context: 'technology',
+    design_approach: 'clean'
+  };
+
+  // Industry detection and color assignment
+  if (domain.includes('health') || domain.includes('medical') || domain.includes('hospital')) {
+    industryColors = { primary: '#059669', secondary: '#f0fdf4', accent: '#34d399' };
+    industryName = 'Healthcare';
+    industryPersonality.industry_context = 'healthcare';
+    industryPersonality.primary_trait = 'trustworthy';
+  } else if (domain.includes('finance') || domain.includes('bank') || domain.includes('invest')) {
+    industryColors = { primary: '#1e40af', secondary: '#f8fafc', accent: '#3b82f6' };
+    industryName = 'Financial Services';
+    industryPersonality.industry_context = 'finance';
+    industryPersonality.primary_trait = 'secure';
+  } else if (domain.includes('food') || domain.includes('restaurant') || domain.includes('cafe')) {
+    industryColors = { primary: '#dc2626', secondary: '#fef2f2', accent: '#f97316' };
+    industryName = 'Food & Beverage';
+    industryPersonality.industry_context = 'hospitality';
+    industryPersonality.primary_trait = 'warm';
+  } else if (domain.includes('edu') || domain.includes('school') || domain.includes('university')) {
+    industryColors = { primary: '#7c3aed', secondary: '#faf5ff', accent: '#a855f7' };
+    industryName = 'Education';
+    industryPersonality.industry_context = 'education';
+    industryPersonality.primary_trait = 'knowledgeable';
+  } else if (domain.includes('shop') || domain.includes('store') || domain.includes('buy')) {
+    industryColors = { primary: '#ea580c', secondary: '#fff7ed', accent: '#f97316' };
+    industryName = 'E-commerce';
+    industryPersonality.industry_context = 'retail';
+    industryPersonality.primary_trait = 'engaging';
+  }
+
+  return {
+    name: industryName,
+    primary_color: industryColors.primary,
+    secondary_color: industryColors.secondary,
+    accent_color: industryColors.accent,
+    font_family: 'Inter, system-ui, sans-serif',
+    logo_url: '',
+    personality: industryPersonality,
+    confidence_scores: {
+      name: 40,
+      colors: 35,
+      typography: 30,
+      logo: 0,
+      personality: 45,
+      overall: 30
+    }
+  };
+}
+
+// ============================================================================
 // HYBRID BRAND EXTRACTION (COMBINES VISION + HTML)
 // ============================================================================
 
 async function extractBrandInfoHybrid(screenshotUrl: string | null, html: string, url: string): Promise<ExtractedBrandInfo> {
   console.log('Starting hybrid brand extraction combining vision + HTML analysis');
   
+  const domain = new URL(url).hostname;
+  
+  // Check cache first
+  const cachedResult = await getCachedPalette(domain);
+  if (cachedResult) {
+    return cachedResult;
+  }
+  
   let visionResult: ExtractedBrandInfo | null = null;
   let htmlResult: ExtractedBrandInfo | null = null;
   
-  // Try vision analysis first if screenshot is available
+  // Run multiple extraction methods simultaneously with graceful degradation
+  const extractionPromises = [];
+  
   if (screenshotUrl) {
-    try {
-      console.log('Attempting vision analysis...');
-      visionResult = await extractBrandInfoWithVision(screenshotUrl);
-      console.log('Vision analysis successful:', visionResult);
-    } catch (visionError) {
-      console.log('Vision analysis failed:', visionError.message);
+    extractionPromises.push(
+      extractBrandInfoWithVision(screenshotUrl)
+        .then(result => ({ type: 'vision', result, success: true }))
+        .catch(error => {
+          console.log('Vision analysis failed, gracefully degrading:', error.message);
+          return { type: 'vision', result: null, success: false, error: error.message };
+        })
+    );
+  }
+  
+  extractionPromises.push(
+    extractBrandFromHTML(html, url)
+      .then(result => ({ type: 'html', result, success: true }))
+      .catch(error => {
+        console.log('HTML analysis failed, gracefully degrading:', error.message);
+        return { type: 'html', result: null, success: false, error: error.message };
+      })
+  );
+
+  // Run all extractions simultaneously
+  const extractionResults = await Promise.all(extractionPromises);
+  
+  // Process results
+  const visionResultData = extractionResults.find(r => r.type === 'vision');
+  const htmlResultData = extractionResults.find(r => r.type === 'html');
+  
+  if (visionResultData?.success) {
+    visionResult = visionResultData.result;
+    console.log('Vision analysis completed successfully');
+  }
+  
+  if (htmlResultData?.success) {
+    htmlResult = htmlResultData.result;
+    console.log('HTML analysis completed successfully');
+  }
+  
+  // Combine results using smart merging logic or fallback gracefully
+  let finalResult = null;
+  
+  if (visionResult || htmlResult) {
+    finalResult = combineExtractionResults(visionResult, htmlResult);
+    console.log('Hybrid extraction successful:', finalResult);
+    
+    // Cache successful extractions for future use
+    if (finalResult) {
+      await cachePalette(domain, finalResult);
     }
+  } else {
+    // Graceful degradation: use intelligent fallback when all methods fail
+    console.log('All extraction methods failed, using intelligent fallback');
+    finalResult = getIntelligentFallback(url);
   }
-  
-  // Always run HTML analysis as backup/comparison
-  try {
-    console.log('Running HTML analysis...');
-    htmlResult = await extractBrandFromHTML(html, url);
-    console.log('HTML analysis complete:', htmlResult);
-  } catch (htmlError) {
-    console.log('HTML analysis failed:', htmlError.message);
-  }
-  
-  // Combine results using smart merging logic
-  const finalResult = combineExtractionResults(visionResult, htmlResult);
-  console.log('Hybrid extraction final result:', finalResult);
   
   return finalResult;
 }
 
-function combineExtractionResults(vision: ExtractedBrandInfo | null, html: ExtractedBrandInfo | null): ExtractedBrandInfo {
+function combineExtractionResults(vision: ExtractedBrandInfo | null, html: ExtractedBrandInfo | null): ExtractedBrandInfo | null {
   // If only one source worked, use it
   if (vision && !html) return vision;
   if (html && !vision) return html;
   if (!vision && !html) {
-    return {
+    return null; // Let caller handle graceful degradation
       name: 'Brand Name',
       primary_color: '#e74c3c',
       secondary_color: '#ffffff',
