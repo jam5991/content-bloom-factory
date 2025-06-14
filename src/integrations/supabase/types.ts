@@ -54,6 +54,86 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_color_corrections: {
+        Row: {
+          brand_asset_id: string | null
+          corrected_colors: Json
+          correction_reason: string | null
+          created_at: string
+          id: string
+          original_colors: Json
+          user_id: string
+        }
+        Insert: {
+          brand_asset_id?: string | null
+          corrected_colors: Json
+          correction_reason?: string | null
+          created_at?: string
+          id?: string
+          original_colors: Json
+          user_id: string
+        }
+        Update: {
+          brand_asset_id?: string | null
+          corrected_colors?: Json
+          correction_reason?: string | null
+          created_at?: string
+          id?: string
+          original_colors?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_color_corrections_brand_asset_id_fkey"
+            columns: ["brand_asset_id"]
+            isOneToOne: false
+            referencedRelation: "brand_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_extraction_history: {
+        Row: {
+          confidence_scores: Json
+          created_at: string
+          domain: string
+          extracted_data: Json
+          extraction_method: string
+          id: string
+          manual_corrections: Json | null
+          success_score: number | null
+          updated_at: string
+          user_id: string
+          website_url: string
+        }
+        Insert: {
+          confidence_scores: Json
+          created_at?: string
+          domain: string
+          extracted_data: Json
+          extraction_method: string
+          id?: string
+          manual_corrections?: Json | null
+          success_score?: number | null
+          updated_at?: string
+          user_id: string
+          website_url: string
+        }
+        Update: {
+          confidence_scores?: Json
+          created_at?: string
+          domain?: string
+          extracted_data?: Json
+          extraction_method?: string
+          id?: string
+          manual_corrections?: Json | null
+          success_score?: number | null
+          updated_at?: string
+          user_id?: string
+          website_url?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           created_at: string
@@ -325,6 +405,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      domain_extraction_patterns: {
+        Row: {
+          created_at: string
+          domain_pattern: string
+          extraction_rules: Json
+          id: string
+          success_rate: number | null
+          updated_at: string
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          domain_pattern: string
+          extraction_rules: Json
+          id?: string
+          success_rate?: number | null
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          domain_pattern?: string
+          extraction_rules?: Json
+          id?: string
+          success_rate?: number | null
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Relationships: []
       }
       media_files: {
         Row: {
