@@ -12,11 +12,13 @@ export type Database = {
       brand_assets: {
         Row: {
           accent_color: string | null
+          confidence_scores: Json | null
           created_at: string
           font_family: string | null
           id: string
           logo_url: string | null
           name: string
+          personality: Json | null
           primary_color: string | null
           secondary_color: string | null
           updated_at: string
@@ -24,11 +26,13 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          confidence_scores?: Json | null
           created_at?: string
           font_family?: string | null
           id?: string
           logo_url?: string | null
           name: string
+          personality?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
           updated_at?: string
@@ -36,11 +40,13 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          confidence_scores?: Json | null
           created_at?: string
           font_family?: string | null
           id?: string
           logo_url?: string | null
           name?: string
+          personality?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
           updated_at?: string
