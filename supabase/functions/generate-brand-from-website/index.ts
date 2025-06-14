@@ -905,16 +905,29 @@ async function extractBrandInfoWithVision(screenshotUrl: string): Promise<Extrac
 
 CRITICAL COLOR EXTRACTION INSTRUCTIONS:
 1. IDENTIFY EXACT HEX COLOR CODES from the website's visual elements
-2. PRIORITIZE colors from: header, navigation bar, buttons, logo, brand elements, CTAs
-3. AVOID generic text colors (#000000, #333333, #666666, #999999, #ffffff) unless they are clearly intentional brand colors
-4. EXTRACT colors that appear repeatedly across brand elements
-5. ANALYZE color relationships and brand color systems
-6. PROVIDE CONFIDENCE LEVELS (0-100) for each color based on:
+2. CALCULATE DOMINANT COLOR PERCENTAGES across the entire visible interface
+3. ANALYZE BRAND ELEMENT LOCATIONS with precise coordinates and descriptions
+4. PRIORITIZE colors from: header, navigation bar, buttons, logo, brand elements, CTAs
+5. AVOID generic text colors (#000000, #333333, #666666, #999999, #ffffff) unless they are clearly intentional brand colors
+6. EXTRACT colors that appear repeatedly across brand elements
+7. PROVIDE CONFIDENCE LEVELS (0-100) for each color based on:
    - Frequency of appearance in brand elements (20 points)
    - Color prominence and visual weight (25 points)
    - Strategic placement (headers, logos, CTAs) (25 points)
    - Color harmony with other brand elements (15 points)
    - Professional color theory principles (15 points)
+
+COLOR PERCENTAGE ANALYSIS:
+- Calculate approximate percentage coverage of each identified color
+- Consider visual weight, not just pixel count
+- Account for color importance in brand hierarchy
+- Identify color distribution patterns across the interface
+
+BRAND ELEMENT LOCATION MAPPING:
+- Map locations of key brand elements (header, logo, navigation, CTAs)
+- Describe positioning (top-left, center, bottom-right, etc.)
+- Analyze spatial relationships between brand elements
+- Note visual hierarchy and element prominence
 
 COLOR CONFIDENCE SCORING SYSTEM:
 - 90-100: Dominant brand colors (logo primary, main CTAs, brand headers)
@@ -923,27 +936,22 @@ COLOR CONFIDENCE SCORING SYSTEM:
 - 45-59: Possible brand colors (backgrounds, borders, subtle accents)
 - Below 45: Uncertain or likely non-brand colors
 
-SPECIFIC COLOR ANALYSIS REQUIREMENTS:
-- Primary Color: Most dominant brand color (highest confidence, most prominent)
-- Secondary Color: Supporting brand color or main background color
-- Accent Color: Highlight/CTA color or complementary brand color
-- ALL COLORS must be exact hex codes (#RRGGBB format)
-- INCLUDE individual confidence scores (integers 0-100) for each color
-- PROVIDE reasoning for each color selection
-
 CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure:
 
 {
   "name": "Primary brand/company name",
   "primary_color": "#RRGGBB",
   "primary_color_confidence": 85,
-  "primary_color_reasoning": "Detailed explanation for primary color selection and confidence score",
+  "primary_color_percentage": 25.5,
+  "primary_color_reasoning": "Detailed explanation for primary color selection, confidence score, and percentage calculation",
   "secondary_color": "#RRGGBB", 
   "secondary_color_confidence": 75,
-  "secondary_color_reasoning": "Detailed explanation for secondary color selection and confidence score",
+  "secondary_color_percentage": 35.2,
+  "secondary_color_reasoning": "Detailed explanation for secondary color selection, confidence score, and percentage calculation",
   "accent_color": "#RRGGBB",
   "accent_color_confidence": 80,
-  "accent_color_reasoning": "Detailed explanation for accent color selection and confidence score",
+  "accent_color_percentage": 8.3,
+  "accent_color_reasoning": "Detailed explanation for accent color selection, confidence score, and percentage calculation",
   "font_family": "Font name",
   "logo_url": "URL or null",
   "personality": {
@@ -961,35 +969,93 @@ CRITICAL INSTRUCTIONS: Return ONLY a valid JSON object with this EXACT structure
     "overall": 79
   },
   "color_analysis": {
-    "extracted_colors": ["#color1", "#color2", "#color3", "#color4", "#color5"],
-    "color_sources": ["logo", "header", "buttons", "navigation", "accents"],
-    "color_frequencies": [5, 4, 3, 2, 1],
-    "brand_elements_analyzed": ["header", "logo", "buttons", "navigation", "footer", "CTAs"],
-    "color_harmony_score": 85,
-    "color_psychology_notes": "Brief analysis of color psychology and brand implications"
+    "dominant_colors": [
+      {
+        "hex": "#RRGGBB",
+        "percentage": 25.5,
+        "name": "Primary Brand Blue",
+        "locations": ["header", "logo", "primary_cta"],
+        "visual_weight": "high"
+      },
+      {
+        "hex": "#RRGGBB",
+        "percentage": 35.2,
+        "name": "Background White",
+        "locations": ["main_content", "cards", "sections"],
+        "visual_weight": "medium"
+      },
+      {
+        "hex": "#RRGGBB",
+        "percentage": 8.3,
+        "name": "Accent Orange",
+        "locations": ["buttons", "links", "highlights"],
+        "visual_weight": "high"
+      }
+    ],
+    "color_distribution": {
+      "header_colors": ["#color1", "#color2"],
+      "navigation_colors": ["#color1", "#color3"],
+      "button_colors": ["#color3", "#color1"],
+      "background_colors": ["#color2", "#color4"],
+      "text_colors": ["#color5", "#color6"]
+    },
+    "brand_element_locations": {
+      "logo": {
+        "position": "top-left",
+        "coordinates": "approximate x,y",
+        "size": "medium",
+        "prominence": "high",
+        "colors_used": ["#color1", "#color2"]
+      },
+      "header": {
+        "position": "top-full-width",
+        "height_percentage": 12,
+        "background_color": "#color1",
+        "text_color": "#color2"
+      },
+      "navigation": {
+        "position": "top-horizontal",
+        "style": "horizontal_menu",
+        "colors_used": ["#color1", "#color2"]
+      },
+      "primary_cta": {
+        "position": "hero_section",
+        "button_color": "#color3",
+        "text_color": "#color2",
+        "prominence": "very_high"
+      },
+      "footer": {
+        "position": "bottom-full-width",
+        "background_color": "#color4",
+        "text_color": "#color5"
+      }
+    },
+    "visual_hierarchy_analysis": {
+      "most_prominent_elements": ["logo", "primary_cta", "header"],
+      "color_attention_flow": ["primary_color", "accent_color", "secondary_color"],
+      "brand_consistency_score": 85
+    }
   }
 }
 
-🎨 DETAILED COLOR EXTRACTION PRIORITIES:
+🎨 DETAILED ANALYSIS REQUIREMENTS:
 
-1. PRIMARY COLOR IDENTIFICATION:
-   - Examine logo for dominant color
-   - Check header/navigation background colors
-   - Look for most frequently used brand color
-   - Assess visual weight and prominence
-   - Must appear in multiple brand elements
+1. COLOR PERCENTAGE CALCULATION:
+   - Estimate visual coverage of each color across the interface
+   - Consider color prominence and visual weight, not just pixel count
+   - Account for strategic placement importance
+   - Include colors that occupy 5% or more of the visual space
 
-2. SECONDARY COLOR IDENTIFICATION:
-   - Look for complementary colors to primary
-   - Check background colors of main sections
-   - Examine secondary navigation elements
-   - Consider colors used for content areas
+2. BRAND ELEMENT LOCATION MAPPING:
+   - Identify precise locations of logo, header, navigation, CTAs
+   - Describe spatial relationships and positioning
+   - Analyze visual hierarchy and prominence
+   - Map color usage across different interface zones
 
-3. ACCENT COLOR IDENTIFICATION:
-   - Focus on call-to-action buttons
-   - Look for link colors and highlights
-   - Check interactive element colors
-   - Identify colors used for emphasis
+3. VISUAL WEIGHT ASSESSMENT:
+   - High: Colors that immediately draw attention (CTAs, logos, headers)
+   - Medium: Supporting colors that provide structure (backgrounds, sections)
+   - Low: Subtle colors for text and minor elements
 
 🔤 ADVANCED TYPOGRAPHY ANALYSIS:
 EXAMINE WITH EXTREME PRECISION:
